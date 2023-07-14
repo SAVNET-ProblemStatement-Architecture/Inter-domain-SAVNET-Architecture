@@ -191,16 +191,20 @@ The SIB is managed by the SAV Information Base Manager, which can consolidate SA
 
 * SAV-specific Information is the specifically collected information for SAV and exactly consists of the legitimate prefixes and their incoming interfaces.
 
-* General information refers to the information that are not directly related to SAV but can be utilized to generate the SAV table, such as routing information from the RIB, the relationships between prefixes and ASes from the RPKI ROA Objects, and the AS relationships from the RPKI ASPA Objects.
+* General information refers to the information that are not directly related to SAV but can be utilized to generate the SAV table, such as routing information from the RIB or FIB, the relationships between prefixes and ASes from the RPKI ROA Objects, and the AS relationships from the RPKI ASPA Objects.
 
 ~~~~~~~~~~
-+---------------------------------------+----------+
-|       SAV Information Sources         |Priorities|
-+---------------------------------------+----------+
-|       SAV-specific Information        |     1    |
-+---------------------------------------+----------+
-|         General Information           |     2    |
-+---------------------------------------+----------+
++---------------------------------------------------+----------+
+|              SAV Information Sources              |Priorities|
++---------------------------------------------------+----------+
+|              SAV-specific Information             |     1    |
++---------------------+-----------------------------+----------+
+|                     | RPKI ROA Obj. and ASPA Obj. |     2    |
+|                     +-----------------------------+----------+
+| General Information |             RIB             |     3    |
+|                     +-----------------------------+----------+
+|                     |             FIB             |     4    |
++---------------------+-----------------------------+----------+
 ~~~~~~~~~~
 {: #sav_src title="Priority ranking for the SAV information sources"}
 
@@ -264,7 +268,7 @@ For example, in {{sib}}, the row with index 0 indicates prefix P3's valid incomi
 
 Recall that the inter-domain SAVNET architecture generates the SAV table based on the SAV-related information in the SIB and their priorities. Besides, in the case of an AS's provider/peer interfaces where loose SAV rules are applicable, the inter-domain SAVNET architecture generates blocklist to only block the prefixes that are sure not to come from the provider interfaces, while in the case of an AS's customer interfaces that necessitate stricter SAV rules, the inter-domain SAVNET architecture generates allowlist to only permit the prefixes in the SAV table.
 
-Additionally, take the SIB in {{sib}} as an example to illustrate how the inter-domain SAVNET architecture generates the SAV table to perform SAV in the data plane. AS 4 can conduct SAV torwards its neighboring ASes as follows: SAV towards AS 1 permits P6 according to the row with index 5 in the SIB, SAV torwards AS 2 permits P1 and P2 according to the rows with indexes 1 and 2 in the SIB, SAV torwards AS 3 blocks P1, P2, and P6 according to the rows with indexes 0, 1, 2, and 5, and SAV torwards AS 5 permits P5 according to the row with index 6 in the SIB.
+Additionally, take the SIB in {{sib}} as an example to illustrate how the inter-domain SAVNET architecture generates the SAV table to perform SAV in the data plane. AS 4 can conduct SAV at its interfaces as follows: SAV at the interface Itf.1 blocks P1, P2, and P6 according to the rows with indexes 0, 1, 2, and 5 in the SIB, SAV at the interface Itf.2 permits P1 and P2 according to the rows with indexes 1 and 2 in the SIB, SAV at the interface Itf.3 permits P6 according to the row with index 5 in the SIB, and SAV at the interface Itf.4 permits P5 according to the row with index 6 in the SIB.
 
 ## SAV-specific Protocol
 
@@ -351,11 +355,19 @@ The information channel serves as a means to transmit the SAV-specific Informati
 
 # Partial/Incremental Deployment
 
-The inter-domain SAVNET architecture MUST ensure support for partial/incremental deployment as it is not feasible to deploy it simultaneously in all ASes. Within the architecture, the general information like the topological information from RPKI ROA Objects and ASPA Objects and the routing information from the RIB can be obtained locally when the corresponding sources are available. Furthermore, it is not mandatory for all ASes to deploy SAV-specific Protocol Speakers even for SAV-specific information. Instead, a SAV-specific Protocol Speaker can effortlessly establish a logical neighboring relationship with another AS that has deployed a SAV-specific Protocol Speaker. This flexibility enables the architecture to accommodate varying degrees of deployment, promoting interoperability and collaboration among participating ASes.
+The inter-domain SAVNET architecture MUST ensure support for partial/incremental deployment as it is not feasible to deploy it simultaneously in all ASes. Within the architecture, the general information like the topological information from RPKI ROA Objects and ASPA Objects and the routing information from the RIB can be obtained locally when the corresponding sources are available. Furthermore, it is not mandatory for all ASes to deploy SAV-specific Protocol Speakers even for SAV-specific Information. Instead, a SAV-specific Protocol Speaker can effortlessly establish a logical neighboring relationship with another AS that has deployed a SAV-specific Protocol Speaker. This flexibility enables the architecture to accommodate varying degrees of deployment, promoting interoperability and collaboration among participating ASes.
 
-During the partial/incremental deployment of SAV-specific Protocol Speaker, the SAV-specific Information for the ASes which do not deploy SAV-specific protocol speaker can not be obtained. To protect the prefixes of these ASes, inter-domain SAVNET architecture can use the SAV-related information from the general information in the SIB to generate SAV rules. At least, the routing information from the RIB can be always available in the SIB. 
+During the partial/incremental deployment of SAV-specific protocol speaker, the SAV-specific Information for the ASes which do not deploy SAV-specific protocol speaker can not be obtained. To protect the prefixes of these ASes, inter-domain SAVNET architecture can use the SAV-related information from the general information in the SIB to generate SAV rules. At least, the routing information from the RIB or FIB can be always available in the SIB. 
 
-Additionally, as more ASes adopt the inter-domain SAVNET architecture, the "deployed area" expands, thereby increasing the collective defense capability against source address spoofing. Furthermore, if multiple "deployed areas" can be logically interconnected across "non-deployed areas", these interconnected "deployed areas" can form a logical alliance, providing enhanced protection against address spoofing. Especially, along with more ASes deploy SAV-specific protocol speaker and support the communication of SAV-specific Information, the generated SAV rules of the inter-domain SAVNET architecture to protect these ASes will become more accurate, as well as enchancing the protection capability agaist source address spoofing for the inter-domain SAVNET architecture.
+As more ASes adopt the inter-domain SAVNET architecture, the "deployed area" expands, thereby increasing the collective defense capability against source address spoofing. Furthermore, if multiple "deployed areas" can be logically interconnected across "non-deployed areas", these interconnected "deployed areas" can form a logical alliance, providing enhanced protection against address spoofing. Especially, along with more ASes deploy SAV-specific protocol speaker and support the communication of SAV-specific Information, the generated SAV rules of the inter-domain SAVNET architecture to protect these ASes will become more accurate, as well as enchancing the protection capability agaist source address spoofing for the inter-domain SAVNET architecture.
+
+In addition, releasing the SAV functions of the inter-domain SAVNET architecture incrementally is one potential way to reduce the deployment risks and can be considered in its deployment by network operators:
+
+* First, the inter-domain SAVNET can only do the measurement in the data plane and do not take any other actions. Based on the measurement data, the operators can evaluate the effect of the inter-domain SAVNET on the legitimate traffic, including validation accuracy and forwarding performance, as well as the operational overhead.
+
+* Second, the inter-domain SAVNET can open the function to limit the rate of the traffic that is justified as spoofing traffic. The operators can further evaluate the effect of the inter-domain SAVNET on the legitimate traffic and spoofing traffic, such as limiting the rate of all the spoofing traffic without hurting the legitimate traffic.
+
+* Third, when the validation accuracy, forwarding performance, and operational overhead have been verified on a large scale by the live network, the inter-domain SAVNET can open the function to directly block the spoofing traffic that is justified by the SAV table in the data plane.
 
 # Convergence Considerations
 
