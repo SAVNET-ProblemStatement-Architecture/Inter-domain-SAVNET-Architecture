@@ -175,7 +175,7 @@ The inter-domain SAVNET architecture collects SAV-specific Information from the 
 
 The SAV-specific protocol should define the data structure or format for communicating the SAV-specific information and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information. Additionally, the SAV-specific Information will not be avaiable for all ASes when the SAV-specific protocol is on the incremental/partial deployment. Therefore, in the stage of incremental/partial deployment, the inter-domain SAVNET architecture can use the general information to generate SAV table.
 
-The SAV Information Base (SIB) can store the information from the SAV-specific Information and general information and is maintained by the SAV Information Base Manager (SIM), and then the SIM generate SAV rules based on the SIB and fill out the SAV table in the dataplane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), remote triggered black hole (RTBH) {{RFC5635}}, Flowspec {{RFC8955}}.
+The SAV Information Base (SIB) can store the information from the SAV-specific Information and general information and is maintained by the SAV Information Base Manager (SIM), and then the SIM generate SAV rules based on the SIB and fill out the SAV table in the dataplane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), remote triggered black hole (RTBH) {{RFC5635}}, and Flowspec {{RFC8955}}.
 
 Inter-domain SAVNET architecture does not prescribe any specific deployment models.
 
@@ -329,7 +329,7 @@ Using the SIB, SIM produces &lt;Prefix, Interface&gt; pairs to populate the SAV 
 ~~~~~~~~~~
 {: #sav_agent_config title="The management channel and information channel for collecting SAV-related information from different SAV information sources"}
 
-The SAV-specific Information relies on the communication between SAV-specific Protocol Speakers within ASes and the general information may be from multiple sources, such as the RIB and RPKI ROA objects and ASPA objects. Therefore, as illustrated in {{sav_agent_config}}, the SIM needs to receive the SAV-related information from SAV-specific Protocol Speaker, RIB, and RPKI ROA objects and ASPA objects. We abstract the connections used to collect the SAV-related information from the sources as Infomation Channel. Also, the network operators can operate the SIB by manual configurations, such as YANG, CLI, RTBG, and Flowspec, where the approaches to implement these are abstracted as Management Channel.
+The SAV-specific Information relies on the communication between SAV-specific Protocol Speakers within ASes and the general information may be from multiple sources, such as the RIB and RPKI ROA objects and ASPA objects. Therefore, as illustrated in {{sav_agent_config}}, the SIM needs to receive the SAV-related information from SAV-specific Protocol Speaker, RIB, and RPKI ROA objects and ASPA objects. We abstract the connections used to collect the SAV-related information from the sources as Infomation Channel. Also, the network operators can operate the SIB by manual configurations, such as YANG, CLI, RTBH {{RFC5635}}, and Flowspec {{RFC8955}}, where the approaches to implement these are abstracted as Management Channel.
 
 The primary purpose of the management channel is to deliver manual configurations of network operators. Examples of such information include, but are not limited to: 
 
