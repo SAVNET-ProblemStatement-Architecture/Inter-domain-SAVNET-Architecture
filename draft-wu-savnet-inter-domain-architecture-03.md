@@ -106,13 +106,10 @@ Real Forwarding Paths:
 : The paths that the legitimate traffic goes through in the data plane.
 
 SAV-specific Information:
-: The information consists of the source prefixes and their legitimate incoming interfaces of an AS and exactly corresponds to the real forwarding paths of the source prefixes.
+: The information consists of the source prefixes and their legitimate incoming interfaces of an AS.
 
 SAV-related Information:
 : The information is used to generate SAV rules and can be from SAV-specific Information or general information.
-
-SAV-specific Message: 
-: The message is used to carry the SAV-specific information between ASes and can be communicated following a SAV-specific protocol.
 
 False Positive: 
 : The validation results that the packets with legitimate source addresses are considered invalid improperly due to inaccurate SAV rules.
@@ -122,9 +119,6 @@ False Negative:
 
 SAV Information Base: 
 : A table or data structure for storing SAV-related information collected from SAV-specific Information and general information.
-
-SAV Information Base Management Protocol: 
-: A protocol which is used to operate and manage the SAV Information Base.
 
 # Design Goals
 
@@ -140,7 +134,7 @@ The inter-domain SAVNET architecture aims to improve SAV accuracy and facilitate
 
 * Last, the inter-domain SAVNET architecture should scale independently from the SAV information sources and the growth of the deployed Internet devices.
 
-The inter-domain SAVNET architecture can achive the goals outlined above as follows: SAV-specific Information can be communicated between ASes to carry the real forwarding paths of source prefixes and enpowers an AS to generate an accurate SAV table for the ASes which support the cummunication of SAV-specific Information. During the incremental/partial deployment period of the SAV-specific Information, the inter-domain SAVNET architecture can leverage the general information to generate the SAV table. Besides, it should proactively adapt to route changes in a timely manner.
+The inter-domain SAVNET architecture can achive the goals outlined above as follows: SAV-specific Information can be communicated between ASes to carry prefixes and their legitimate incoming interfaces and enpowers an AS to generate an accurate SAV table for the ASes which support the cummunication of SAV-specific Information. During the incremental/partial deployment period of the SAV-specific Information, the inter-domain SAVNET architecture can leverage the general information to generate the SAV table. Moreover, it should proactively adapt to route changes in a timely manner.
 
 Other design goals, such as low operational overhead and easy implementation, are also very important and should be considered in specific protocols or protocol extensions and are out of scope for this document.
 
@@ -177,11 +171,11 @@ Other design goals, such as low operational overhead and easy implementation, ar
 
 {{arch}} shows the overview of the inter-domain SAVNET architecture. 
 
-The inter-domain SAVNET architecture collects SAV-specific Information from SAV-specific Messages of other ASes. The SAV-specific Information carries the real data-plane forwarding paths of prefixes which exactly consists of the legitimate prefixes and their incoming interfaces of the ASes. As a result, the SAV-specific information can be used to generate SAV rules and build an accurate SAV table on each AS directly. In order to exchange SAV-specific Information between ASes, a new SAV-specific protocol should be developed to carry the SAV-specific information. Compared against existing inter-domain SAV mechanisms which rely on the general information such as routing information from the RIB, the SAV-specifc information can generate more accurate SAV table, the root cause is that the SAV-specific information is dedicately design for inter-domain SAV, while the general information is not.
+The inter-domain SAVNET architecture collects SAV-specific Information from the SAV-specific Messages of other ASes. The SAV-specific Information consists of the legitimate prefixes and their legitimate incoming interfaces of the ASes. As a result, the SAV-specific information can be used to generate SAV rules and build an accurate SAV table on each AS directly. In order to exchange SAV-specific Information between ASes, a new SAV-specific protocol should be developed to carry the SAV-specific information. Compared against existing inter-domain SAV mechanisms which rely on the general information such as routing information from the RIB, the SAV-specifc information can generate more accurate SAV table, the root cause is that the SAV-specific information is dedicately design for inter-domain SAV, while the general information is not.
 
 The SAV-specific protocol should define the data structure or format for communicating the SAV-specific information and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information. Additionally, the SAV-specific Information will not be avaiable for all ASes when the SAV-specific protocol is on the incremental/partial deployment. Therefore, in the stage of incremental/partial deployment, the inter-domain SAVNET architecture can use the general information to generate SAV table.
 
-The SAV Information Base (SIB) can store the information from the SAV-specific Information and general information and is maintained by the SAV Information Base Manager (SIM), and then the SIM generate SAV rules based on the SIB and fill out the SAV table in the dataplane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), and SIB Management Protocol (SMP) like remote triggered black hole (RTBH) {{RFC5635}} and FlowSpec {{RFC8955}}.
+The SAV Information Base (SIB) can store the information from the SAV-specific Information and general information and is maintained by the SAV Information Base Manager (SIM), and then the SIM generate SAV rules based on the SIB and fill out the SAV table in the dataplane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), remote triggered black hole (RTBH) {{RFC5635}}, Flowspec {{RFC8955}}.
 
 Inter-domain SAVNET architecture does not prescribe any specific deployment models.
 
@@ -208,7 +202,7 @@ The SIB is managed by the SAV Information Base Manager, which can consolidate SA
 ~~~~~~~~~~
 {: #sav_src title="Priority ranking for the SAV information sources"}
 
-{{sav_src}} presents a priority ranking for the SAV-specific Information and general information. SAV-specific Information has higher priority (i.e., 1) than the general information (i.e., 2), since the inter-domain SAVNET architecture uses the SAV-specific information to carry ASes' prefixes and their legitimate incoming interfaces for an AS based on the real data-plane forwarding paths of prefixes. Therefore, once the SAV-specific information for a prefix is available within the SIB, the inter-domain SAVNET generate the SAV table based on the information from the SAV-specific information; otherwise, the inter-domain SAVNET generate the SAV table based on the information from the general information. In other words, the inter-domain SAVNET architecture assigns priorities to the information from different SAV information sources, and always generate the SAV table using the information with the high priority.
+{{sav_src}} presents a priority ranking for the SAV-specific Information and general information. SAV-specific Information has higher priority (i.e., 1) than the general information (i.e., 2), since the inter-domain SAVNET architecture uses the SAV-specific information to carry the more accurate information which comprises ASes' prefixes and their legitimate incoming interfaces. Therefore, once the SAV-specific information for a prefix is available within the SIB, the inter-domain SAVNET generate the SAV table based on the information from the SAV-specific information; otherwise, the inter-domain SAVNET generate the SAV table based on the information from the general information. In other words, the inter-domain SAVNET architecture assigns priorities to the information from different SAV information sources, and always generate the SAV table using the information with the high priority.
 
 ~~~~~~~~~~
 +-----+------+------------------+---------+------------------------+
@@ -283,11 +277,11 @@ Additionally, take the SIB in {{sib}} as an example to illustrate how the inter-
 ~~~~~~~~~~
 {: #sav_msg title="Communicating SAV-specific Messages with SAV-specific Protocol between ASes"}
 
-As shown in {{sav_msg}}, SAV-specific Messages are used to propagate or originate the real forwarding paths of prefixes between ASes by the SAV-specific Protocol Speakers. Within an AS, the SAV-specific Protocol Speaker can obtain the next hop of the corresponding prefixes based on the routing table from the local RIB and use SAV-specific Messages to carry the next hops of the corresponding prefixes and propagate them between ASes with SAV-specific Protocol.
+As shown in {{sav_msg}}, SAV-specific Messages are used to propagate or originate the information on prefixes and their incoming interfaces between ASes by the SAV-specific Protocol Speakers. Within an AS, the SAV-specific Protocol Speaker can obtain the next hop of the corresponding prefixes based on the routing table from the local RIB and use SAV-specific Messages to carry the next hops of the corresponding prefixes and propagate them between ASes with SAV-specific Protocol.
 
-The SAV-specific protocol should define the SAV-specific information to be communicated, the data structure or format to communicate the information, and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information. The SAV-specific protocol speaker is the entity to support the SAV-specific protocol. To generate the real forwarding paths of prefixes, the SAV-specific Protocol Speaker connects to other SAV-specific Protocol Speakers in other ASes, receives, processes, generates, or terminates SAV-specific Messages. Then, it obtains the ASN, the prefixes, the AS-level interfaces to receive the messages, and their incoming AS direction for maintaining the SIB. It is important to note that the SAV-specific Protocol Speaker within an AS has the capability to establish connections with multiple SAV-specific Protocol Speakers from different ASes, relying on either manual configurations by operators or an automatic mechanism.
+The SAV-specific protocol should define the SAV-specific information to be communicated, the data structure or format to communicate the information, and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information. The SAV-specific protocol speaker is the entity to support the SAV-specific protocol. To generate the SAV-specific Information, the SAV-specific Protocol Speaker connects to other SAV-specific Protocol Speakers in other ASes, receives, processes, generates, or terminates SAV-specific Messages. Then, it obtains the ASN, the prefixes, the AS-level interfaces to receive the messages, and their incoming AS direction for maintaining the SIB. It is important to note that the SAV-specific Protocol Speaker within an AS has the capability to establish connections with multiple SAV-specific Protocol Speakers from different ASes, relying on either manual configurations by operators or an automatic mechanism.
 
-The need for a SAV-specific protocol arises from the facts that the real-forwarding paths of source prefixes, i.e., SAV-specific Information, need to be obtained and communicated between ASes. Different from the general information such routing information from the RIB, there is no existing mechanisms which can support the perception and communication of SAV-specific information between ASes. Hence, a unified SAV-tailored protocol is needed to provide a medium and set of rules to establish communication between different ASes for the exchange of SAV-specific information.
+The need for a SAV-specific protocol arises from the facts that the SAV-specific Information needs to be obtained and communicated between ASes. Different from the general information such routing information from the RIB, there is no existing mechanisms which can support the perception and communication of SAV-specific information between ASes. Hence, a unified SAV-tailored protocol is needed to provide a medium and set of rules to establish communication between different ASes for the exchange of SAV-specific information.
 
 Moreover, the preferred AS paths of an AS may change over time due to route changes, including source prefix change and AS path change. The SAV-specific Protocol Speaker should launch SAV-specific Messages to adapt to the route changes in a timely manner. Inter-domain SAVNET should handle route changes carefully to avoid false positives. The reasons for leading to false positives may include late detection of route changes, delayed message transmission, or packet losses. However, the detailed design of the SAV-specific protocol for dealing with route changes is outside the scope of this document.
 
@@ -335,15 +329,11 @@ Using the SIB, SIM produces &lt;Prefix, Interface&gt; pairs to populate the SAV 
 ~~~~~~~~~~
 {: #sav_agent_config title="The management channel and information channel for collecting SAV-related information from different SAV information sources"}
 
-The SAV-specific Information relies on the communication between SAV-specific Protocol Speakers within ASes and the general information may be from multiple sources, such as the RIB and RPKI ROA objects and ASPA objects. Therefore, as illustrated in {{sav_agent_config}}, the SIM needs to receive the SAV-related information from SAV-specific Protocol Speaker, RIB, and RPKI ROA objects and ASPA objects. We abstract the connections used to collect the SAV-related information from the sources as Infomation Channel. Also, the network operators can operate the SIB by manual configurations, such as YANG, CLI, and SMP, where the approaches to implement these are abstracted as Management Channel.
+The SAV-specific Information relies on the communication between SAV-specific Protocol Speakers within ASes and the general information may be from multiple sources, such as the RIB and RPKI ROA objects and ASPA objects. Therefore, as illustrated in {{sav_agent_config}}, the SIM needs to receive the SAV-related information from SAV-specific Protocol Speaker, RIB, and RPKI ROA objects and ASPA objects. We abstract the connections used to collect the SAV-related information from the sources as Infomation Channel. Also, the network operators can operate the SIB by manual configurations, such as YANG, CLI, RTBG, and Flowspec, where the approaches to implement these are abstracted as Management Channel.
 
 The primary purpose of the management channel is to deliver manual configurations of network operators. Examples of such information include, but are not limited to: 
 
-* SAV configurations using YANG.
-
-* SAV configurations using CLI.
-
-* SAV configurations using SMP.
+* SAV configurations using YANG, CLI, RTBH, or Flowspec.
 
 * SAVNET operation and management.
 
