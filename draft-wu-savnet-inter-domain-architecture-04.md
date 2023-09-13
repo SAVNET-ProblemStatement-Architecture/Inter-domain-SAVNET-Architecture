@@ -102,9 +102,6 @@ SAV Rule:
 SAV Table: 
 : The table or data structure that implements the SAV rules and is used for source address validation in the data plane. 
 
-Real Forwarding Paths: 
-: The paths that the legitimate traffic goes through in the data plane.
-
 SAV-specific Information:
 : The information consists of the source prefixes and their legitimate incoming interfaces of an AS.
 
@@ -258,7 +255,7 @@ The SIB is managed by the SAV Information Base Manager, which can consolidate SA
 
 Each row of the SIB contains an index, prefix, AS-level valid incoming interface for the prefix, incoming direction, and the corresponding sources of these information. The incoming direction consists of customer, provider, and peer. In order to provide a clear illustration of the SIB, {{sib}} depicts an example of an SIB established in AS 4. As shown in {{as-topo}}, AS 4 has four AS-level interfaces, each connected to a different AS. Specifically, Itf.1 is connected to AS 3, Itf.2 to AS 2, Itf.3 to AS 1, and Itf.4 to AS 5. The arrows in the figure represent the commercial relationships between ASes. AS 3 is the provider of AS 4 and AS 5, while AS 4 is the provider of AS 1, AS 2, and AS 5, and AS 2 is the provider of AS 1. Assuming prefixes P1, P2, P3, P4, P5, and P6 are all the prefixes in the network. 
 
-For example, in {{sib}}, the row with index 0 indicates prefix P3's valid incoming interface is Itf.1, the ingress direction of P3 is AS 4's provider AS (AS 3), and these information is from the RIB. Note that the same SAV-related information may have multiple sources and the SIB records them all, such as the rows with indexes 3, 5, and 6.
+For example, in {{sib}}, the row with index 0 indicates prefix P3's valid incoming interface is Itf.1, the ingress direction of P3 is AS 4's provider AS (AS 3), and these information is from the RIB. Note that the same SAV-related information may have multiple sources and the SIB records them all.
 
 Recall that the inter-domain SAVNET architecture generates the SAV table based on the SAV-related information in the SIB and their priorities. Besides, in the case of an AS's provider/peer interfaces where loose SAV rules are applicable, the inter-domain SAVNET architecture generates blocklist to only block the prefixes that are sure not to come from the provider interfaces, while in the case of an AS's customer interfaces that necessitate stricter SAV rules, the inter-domain SAVNET architecture generates allowlist to only permit the prefixes in the SAV table.
 
@@ -318,7 +315,7 @@ Using the SIB, SIM produces &lt;Prefix, Interface&gt; pairs to populate the SAV 
 |      |                         +--------------------------------+
 |      |
 |      |   Information Channel   +--------------------------------+
-|      |<----------------------->| SAV-specific Message Processor |
+|      |<------------------------| SAV-specific Message Processor |
 |      |                         +--------------------------------+
 | SIM  |
 |      |   Information Channel   +--------------------------------+
