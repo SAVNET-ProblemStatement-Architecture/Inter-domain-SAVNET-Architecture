@@ -11,9 +11,16 @@ In WG meetings and mailing list, there were lots of active discussions on our pr
 - - -
 ## IETF 116
 - Time: Wednesday, March 29, 2023 (Yokohama, Japan)
-- Minutes: https://datatracker.ietf.org/wg/savnet/meetings/
+- Minutes: https://datatracker.ietf.org/doc/minutes-116-savnet-202303290030/
 - Draft: [draft-wu-savnet-inter-domain-architecture-01](https://datatracker.ietf.org/doc/draft-wu-savnet-inter-domain-architecture/) 
 - Materials: https://datatracker.ietf.org/meeting/116/session/savnet
+
+- - -
+## IETF 117
+- Time: Thursday, July 27, 2023 (San Francisco, USA)
+- Minutes: https://datatracker.ietf.org/doc/minutes-117-savnet/
+- Draft: [draft-wu-savnet-inter-domain-architecture-03](https://datatracker.ietf.org/doc/draft-wu-savnet-inter-domain-architecture/) 
+- Materials: https://datatracker.ietf.org/meeting/117/session/savnet
 
 - - -
 ## Mailing List
