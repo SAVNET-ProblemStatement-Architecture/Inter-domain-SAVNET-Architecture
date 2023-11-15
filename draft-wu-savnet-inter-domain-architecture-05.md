@@ -68,8 +68,13 @@ informative:
     target: https://datatracker.ietf.org/doc/draft-ietf-savnet-inter-domain-problem-statement/
     title: Source Address Validation in Inter-domain Networks Gap Analysis, Problem Statement, and Requirements 
     date: 2023
+  intra-domain-arch:
+    target: https://datatracker.ietf.org/doc/draft-li-savnet-intra-domain-architecture/
+    title: Intra-domain Source Address Validation (SAVNET) Architecture
+    date: 2023
   RFC5635:
   RFC8955:
+  RFC8210:
   manrs:
     target: https://www.manrs.org/netops/guide/antispoofing/
     title: MANRS Implementation Guide
@@ -134,64 +139,74 @@ False Positive:
 False Negative: 
 : The validation results that the packets with spoofed source addresses are considered valid improperly due to inaccurate SAV rules. False negative may induce improper permit problems if routers accept the "valid" packets. 
 
-# Design Goals
+# Design Goals {#goal-sec}
 
 The inter-domain SAVNET architecture aims to improve SAV accuracy, facilitate partial deployment with low operational overhead, and develop a communication approach to communicate SAV-specific Information between ASes, while achieving efficient convergence and providing security guarantees to communicated information, which correspond to the requirements for new inter-domain SAV mechanisms {{inter-domain-ps}}. The overall goal can be broken down into the following aspects:
 
-* First, the inter-domain SAVNET architecture should learn the real paths of source prefixes to any destination prefixes or permissible paths that can cover their real paths, and generate accurate SAV rules automatically based on the learned information to avoid false positives and reduce false negatives as much as possible.
+* G1: The inter-domain SAVNET architecture should learn the real paths of source prefixes to any destination prefixes or permissible paths that can cover their real paths, and generate accurate SAV rules automatically based on the learned information to avoid false positives and reduce false negatives as much as possible.
 
-* Second, the inter-domain SAVNET architecture should provide sufficient protection for the source prefixes of ASes that deploy it, even if only a portion of the Internet implements the architecture.
+* G2: The inter-domain SAVNET architecture should provide sufficient protection for the source prefixes of ASes that deploy it, even if only a portion of the Internet implements the architecture.
 
-* Third, the inter-domain SAVNET architecture should adapt to dynamic networks and asymmetric routing scenarios automatically.
+* G3: The inter-domain SAVNET architecture should adapt to dynamic networks and asymmetric routing scenarios automatically.
 
-* Fourth, the inter-domain SAVNET architecture should communicate SAV-specific Information between ASes automatically with a communication approach.
+* G4: The inter-domain SAVNET architecture should communicate SAV-specific Information between ASes automatically with a communication approach.
 
-* Fifth, the inter-domain SAVNET architecture should promptly detect the network changes and launch the convergence process quickly, while reducing false positives and false negatives during the convergence process.
+* G5: The inter-domain SAVNET architecture should promptly detect the network changes and launch the convergence process quickly, while reducing false positives and false negatives during the convergence process.
 
-* Last, the inter-domain SAVNET architecture should provide security guarantees for the communicated SAV-specific Information.
+* G6: The inter-domain SAVNET architecture should provide security guarantees for the communicated SAV-specific Information.
 
 Other design goals, such as low operational overhead and easy implementation, are also very important and should be considered in specific protocols or protocol extensions.
 
-# Inter-domain SAVNET Architecture 
+# Inter-domain SAVNET Architecture Overview
 
 ~~~~~~~~~~
-+-------------------------------------------------------+
-|                       Other ASes                      |
-+-------------------------------------------------------+
-                                         | SAV-specific
-                                         | Messages
-+-------------------------------------------------------+                                       
-|                                        |           AS |
-|                                       \/              |
-| +~~~~~~~~~~~~~~~~~~~~~+  +--------------------------+ |
-| | General Information |  | SAV-specific Information | |
-| +~~~~~~~~~~~~~~~~~~~~~+  +--------------------------+ |
-|            |                           |              |
-|           \/                          \/              |
-| +---------------------------------------------------+ |
-| | +-----------------------------------------------+ | |
-| | |              SAV Information Base             | | |
-| | +-----------------------------------------------+ | |
-| |            SAV Information Base Manager           | |
-| +---------------------------------------------------+ |
-|                          |SAV Rules                   |
-|                         \/                            |
-|  +------------------------------------------------+   |
-|  |                    SAV Table                   |   |
-|  +------------------------------------------------+   |
-+-------------------------------------------------------+
++-----------------------------------------------------------+
+|                          Other ASes                       |
++-----------------------------------------------------------+
+                                           | SAV-specific
+                                           | Messages
++-----------------------------------------------------------+
+|                                          |                |
+| +-------------------------------------------------------+ |                                      
+| |                        SAV Agent       |              | |
+| |                                       \/              | |
+| | +---------------------+  +--------------------------+ | |
+| | | General Information |  | SAV-specific Information | | |
+| | +---------------------+  +--------------------------+ | |
+| |            |                           |              | |
+| |           \/                          \/              | |
+| | +---------------------------------------------------+ | |
+| | | +-----------------------------------------------+ | | |
+| | | |              SAV Information Base             | | | |
+| | | +-----------------------------------------------+ | | |
+| | |            SAV Information Base Manager           | | |
+| | +---------------------------------------------------+ | |
+| |                          |SAV Rules                   | |
+| +-------------------------------------------------------+ |
+|                            |                              |
+|                           \/                              |
+| +-------------------------------------------------------+ |
+| |                      SAV Table                        | |
+| +-------------------------------------------------------+ |
++-----------------------------------------------------------+
 ~~~~~~~~~~
 {: #arch title="The inter-domain SAVNET architecture"}
 
-{{arch}} shows the overview of the inter-domain SAVNET architecture. The inter-domain SAVNET architecture collects SAV-specific Information from the SAV-specific Messages of other ASes. The SAV-specific Information consists of the prefixes and their legitimate incoming interfaces to enter an AS. As a result, the SAV-specific Information can be used to generate SAV rules and build an accurate SAV table on each AS directly. In order to exchange SAV-specific Information between ASes, a new SAV-specific communication mechanism should be developed to carry the SAV-specific Information. Compared against existing inter-domain SAV mechanisms which rely on the general information such as routing information from the RIB, the SAV-specific Information can generate more accurate SAV rules, the root cause is that the SAV-specific Information is specially designed and communicated for inter-domain SAV, while the general information is not.
+The inter-domain SAVNET architecture depicted in {{arch}} collects SAV-specific information from the SAV-specific messages of other ASes. The SAV-specific information consists of the prefixes and their legitimate incoming interfaces of the ASes. As a result, the SAV-specific information can be used to generate SAV rules and build an accurate SAV table on each AS directly (G1). When the SAV-specific information is not available due to incremental/partial deployment, the inter-domain SAVNET architecture can also leverage the general information such as the routing information from the RIB to generate SAV rules (G2). 
 
-A SAV-specific communication mechanism should be developed to define the data structure or format for communicating the SAV-specific Information and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information. Additionally, the SAV-specific Information will not be available for all ASes when the SAV-specific communication mechanism is on the incremental/partial deployment. Therefore, in the stage of incremental/partial deployment, the inter-domain SAVNET architecture can use the general information to generate SAV rules.
+The inter-domain SAVNET architecture prioritizes the SAV-specific information and general information. When both SAV-specific information and general information are available, it guides to adopt the SAV-specific information to generate SAV rules. The SAV-specific information can help generate more accurate SAV rules, the rationale is that the SAV-specific information is designed specifically for inter-domain SAV to carry the prefixes and their legitimate incoming interfaces (G1).
 
-The SAV Information Base (SIB) can store the information from the SAV-specific Information and general information and is maintained by the SAV Information Base Manager (SIM), and then the SIM generates SAV rules based on the SIB and fills out the SAV table in the dataplane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), remote triggered black hole (RTBH) {{RFC5635}}, and Flowspec {{RFC8955}}.
+The SAV Agent should launch SAV-specific messages to adapt to the route changes in a timely manner (G3). The SAV-specific communication mechanism should handle route changes carefully to avoid false positives. The reasons for leading to false positives may include late detection of route changes, delayed message transmission, or packet losses. During the convergence process of the SAV-specific communication mechanism, the inter-domain SAVNET architecture can use the information from RPKI ROA Objects and ASPA objects to generate SAV rules until the convergence process is finished, since these information is more stable and can help avoid false positives, and thus avoiding the impact to the legitimate traffic (G5). However, the detailed design of the SAV-specific communication mechanism for dealing with route changes is outside the scope of this document.
 
-Inter-domain SAVNET architecture does not prescribe any specific deployment models.
+A new SAV-specific information communication mechanism is required to exchange SAV-specific information between ASes. It should define the data structure or format for communicating the SAV-specific information and the operations and timing for originating, processing, propagating, and terminating the messages which carry the information (G4). 
 
-## SAV Information Base {#sib-sec}
+Besides, regarding the security concerns, the inter-domain SAVNET architecture shares similar security threats with BGP and can leverage existing BGP security mechanisms to enhance both session and content security (G6).
+
+Moreover, the SAV Information Base (SIB) can store SAV-specific and general information and is maintained by the SAV Information Base Manager (SIM). The SIM generates SAV rules based on the SIB and fills out the SAV table in the data plane. The SIB can be managed by network operators using various methods such as YANG, Command-Line Interface (CLI), remote triggered black hole (RTBH), and Flowspec. The detailed collection methods of the SAV-related information depend on the deployment and implementation of the inter-domain SAV mechanisms and are out of scope for this document.
+
+It is worth noting that the interfaces in the SIB are logical AS-level interfaces and need to be mapped to the physical interfaces of the AS border routers.
+
+# SAV Information Base {#sib-sec}
 
 The SIB is managed by the SAV Information Base Manager, which can consolidate SAV-related information from different sources. The SAV information sources of SIB include SAV-specific Information and general information, which are illustrated below:
 
@@ -213,10 +228,13 @@ In the future, if an information source is created but is not initially and spec
 |                     +-----------------------------+----------+
 |                     |             FIB             |     4    |
 +---------------------+-----------------------------+----------+
+Priority ranking from 1 to 4 represents high to low priority.
 ~~~~~~~~~~
-{: #sav_src title="Priority ranking for the SAV information sources"}
+{: #sav_src title="Priority ranking for the SAV information sources."}
 
-{{sav_src}} presents a priority ranking for the SAV-specific Information and general information. SAV-specific Information has higher priority (i.e., 1) than the general information (i.e., 2), since the inter-domain SAVNET architecture uses the SAV-specific Information to carry more accurate information which comprises ASes' prefixes and their legitimate incoming interfaces. Therefore, once the SAV-specific Information for a prefix is available within the SIB, the inter-domain SAVNET generates SAV rules based on the information from the SAV-specific Information; otherwise, the inter-domain SAVNET generates SAV rules based on the general information. In other words, the inter-domain SAVNET architecture assigns priorities to the information from different SAV information sources, and always generates the SAV rules using the information with the highest priority.
+{{sav_src}} presents the priority ranking for the SAV-specific Information and general information. Priority ranking from 1 to 4 represents high to low priority. Inter-domain SAVNET architecture should use the SAV information based on the priorities. Once the SAV-specific Information for a prefix is available within the SIB, the inter-domain SAVNET generates SAV rules based on the information from the SAV-specific Information; otherwise, the inter-domain SAVNET generates SAV rules based on the general information. In other words, the inter-domain SAVNET architecture assigns priorities to the information from different SAV information sources, and always generates the SAV rules using the information with the highest priority, as long as the information is available.
+
+The priority ranking recommendation for different SAV information sources in {{sav_src}} is based on the accuracy of SAV rules generated based on the information from the different sources. That is avoiding improper blocks and minimizing improper permits. SAV-specific Information has higher priority than the general information, since the SAV-specific Information is specifically designed to carry more accurate SAV information which comprises ASes' prefixes and their legitimate incoming interfaces to an AS. The general information from RPKI ROA Objects and ASPA Objects, RIB, and FIB has different priorities, ranking 2, 3, and 4, respectively. The information from RPKI ROA Object and ASPA Object has higher priority than the one from RIB and FIB, this is because RPKI ROA Object and ASPA Object can provide authoritative prefixes and topology information, which can be used to generate more accurate SAV rules. The information from RPKI ROA Object and ASPA Object is more stable and can be used to reduce the risk of improper blocks during the convergence process of the network. Although the fundamental information source for RIB and FIB is the same, the RIB consists of more back path information than the FIB, which can reduce improper blocks.
 
 ~~~~~~~~~~
                            +------------------+
@@ -243,6 +261,9 @@ In the future, if an information source is created but is not initially and spec
               +----------------+           +----------------+
               |  AS 1(P1, P6)  |           |    AS 5(P5)    |
               +----------------+           +----------------+
+Both AS 1 and AS 4 deploy the inter-domain SAVNET architecture 
+and can exchange the SAV-specific information with each other, 
+while other ASes do not deploy it.
 ~~~~~~~~~~
 {: #as-topo title="An example of AS topology"}
 
@@ -250,89 +271,98 @@ In the future, if an information source is created but is not initially and spec
 +-----+------+------------------+---------+------------------------+
 |Index|Prefix|AS-level Interface|Direction| SAV Information Source |
 +-----+------+------------------+---------+------------------------+
-|  0  |  P3  |      Itf.1       |Provider |  General Information   | 
+|  0  |  P1  |      Itf.2       |Customer |SAV-specific Information| 
 +-----+------+------------------+---------+------------------------+
-|  1  |  P2  |      Itf.2       |Customer |  General Information   |
+|  1  |  P1  |      Itf.3       |Customer |  General Information   |
 +-----+------+------------------+---------+------------------------+
-|  2  |  P1  |      Itf.2       |Customer |SAV-specific Information|
+|  2  |  P2  |      Itf.2       |Customer |  General Information   |
 +-----+------+------------------+---------+------------------------+
-|  3  |  P1  |      Itf.3       |Customer |  General Information   |
+|  3  |  P3  |      Itf.1       |Provider |  General Information   |
 +-----+------+------------------+---------+------------------------+
-|  4  |  P6  |      Itf.2       |Customer |  General Information   |
+|  4  |  P5  |      Itf.1       |Provider |  General Information   |
 +-----+------+------------------+---------+------------------------+
-|  5  |  P6  |      Itf.3       |Customer |SAV-specific Information|
-|     |      |                  |         |  General Information   |
+|  5  |  P5  |      Itf.4       |Customer |  General Information   |
 +-----+------+------------------+---------+------------------------+
-|  6  |  P5  |      Itf.4       |Customer |  General Information   |
+|  6  |  P6  |      Itf.2       |Customer |  General Information   |
+|     |      |                  |         |SAV-specific Information|
 +-----+------+------------------+---------+------------------------+
-|  7  |  P5  |      Itf.1       |Provider |  General Information   |
+|  7  |  P6  |      Itf.3       |Customer |  General Information   |
 +-----+------+------------------+---------+------------------------+
 ~~~~~~~~~~
 {: #sib title="An example for the SAV information base in AS 4"}
 
 We use the examples shown in {{as-topo}} and {{sib}} to introduce SIB and illustrate how to generate SAV rules based on the SIB. {{as-topo}} shows an example of AS topology and {{sib}} depicts an example of the SIB established in AS 4. As shown in {{as-topo}}, AS 4 has four AS-level interfaces, each connected to a different AS. Specifically, Itf.1 is connected to AS 3, Itf.2 to AS 2, Itf.3 to AS 1, and Itf.4 to AS 5. The arrows in the figure represent the commercial relationships between ASes. AS 3 is the provider of AS 4 and AS 5, while AS 4 is the provider of AS 1, AS 2, and AS 5, and AS 2 is the provider of AS 1. Assuming prefixes P1, P2, P3, P4, P5, and P6 are all the prefixes in the network. 
 
-Each row of the SIB contains an index, prefix, AS-level incoming interface for the prefix, incoming direction, and the corresponding sources of these information. The incoming direction consists of customer, provider, and peer. For example, in {{sib}}, the row with index 0 indicates prefix P3's valid incoming interface is Itf.1, the ingress direction of P3 is AS 4's provider AS (AS 3), and these information is from the RIB. Note that the same SAV-related information may have multiple sources and the SIB records them all.
+Each row of the SIB contains an index, prefix, AS-level incoming interface for the prefix, incoming direction, and the corresponding sources of this information. The incoming direction consists of customer, provider, and peer. For example, in {{sib}}, the row with index 0 indicates prefix P1's valid incoming interface is Itf.2, the ingress direction of P1 is AS 4's customer AS (AS 2), and this information is from the RIB. Note that the same SAV-related information may have multiple sources and the SIB records them all, such as the row indexed 6 in {{sib}}. Moreover, the SIB should be carefully implemented in the specific protocol or protocol extensions to avoid becoming a heavy burden of the router, and the similar optimization approaches used for the RIB may be applied.
 
 Recall that the inter-domain SAVNET architecture generates SAV rules based on the SAV-related information in the SIB and their priorities. In addition, in the case of an AS's provider/peer interfaces where loose SAV rules are applicable, the inter-domain SAVNET architecture recommends to use blocklist at such interfaces to only block the prefixes that are sure not to come at these interfaces, while in the case of an AS's customer interfaces that necessitate stricter SAV rules, the inter-domain SAVNET architecture recommends to use allowlist to only permit the prefixes that are allowed to come at these interfaces.
 
-Based on the above rules, take the SIB in {{sib}} as an example to illustrate how the inter-domain SAVNET architecture generates the SAV table to perform SAV in the data plane. AS 4 can conduct SAV at its interfaces as follows: SAV at the interface Itf.1 blocks P1, P2, and P6 according to the rows with indexes 0, 1, 2, and 5 in the SIB, SAV at the interface Itf.2 permits P1 and P2 according to the rows with indexes 1 and 2 in the SIB, SAV at the interface Itf.3 permits P6 according to the row with index 5 in the SIB, and SAV at the interface Itf.4 permits P5 according to the row with index 6 in the SIB.
+Based on the above rules, take the SIB in {{sib}} as an example to illustrate how the inter-domain SAVNET architecture generates the SAV table to perform SAV in the data plane. AS 4 can conduct SAV at its interfaces as follows: SAV at the interface Itf.1 blocks P1, P2, and P6 according to the rows indexed 0, 2, and 6 in the SIB, SAV at the interface Itf.2 permits P1, P2, and P6 according to the rows indexed 0, 2, and 6 in the SIB, SAV at the interface Itf.3 does not permit any prefixes according to the row indexed 0, 1, 6, and 7 in the SIB, and SAV at the interface Itf.4 permits P5 according to the row indexed 6 in the SIB.
 
-## SAV-specific Information
-
-~~~~~~~~~~
-+----------------------+              +----------------------+
-|          AS          | SAV-specific |          AS          |
-| +-----------------+  |  Messages    |  +-----------------+ |
-| |  SAV-specific   |<-|--------------|->|   SAV-specific  | |
-| |Message Processor|  |              |  |Message Processor| |
-| +-----------------+  |              |  +-----------------+ |
-+----------------------+              +----------------------+
-~~~~~~~~~~
-{: #sav_msg title="Exchanging SAV-specific Information with SAV-specific Messages between ASes"}
-
-The SAV-specific Information is the information consisting of source prefixes and their legitimate incoming interfaces entering an AS, and the legitimate incoming interfaces are the interfaces where the packets whose source addresses are encompassed in the source prefixes come. Therefore, the SAV-specific Information can be expressed as &lt;Prefix, Interface&gt; pairs. It is noted that the same prefix may have different legitimate incoming interfaces for an AS, since the dataplane packets with the source addresses encompassed in the source prefixes may have different destination addresses.
-
-The SAV-specific Information can be exchanged between ASes by the SAV-specific messages. As shown in {{sav_msg}}, the SAV-specific messages are used to propagate or originate the SAV-specific Information between ASes by the SAV-specific message processor. Within an AS, the SAV-specific message processor can obtain the next hop of the corresponding prefixes based on the local RIB and use SAV-specific messages to carry its own prefixes and/or the prefixes received from other ASes to the next hops for the corresponding destinations. When a SAV-specific processor receives the SAV-specific messages, it parses them to obtain the carried source prefixes, as well as the corresponding legitimate incoming interfaces by checking the interfaces which the SAV-specific messages arrive at. The SAV-specific message processor also checks the destination addresses of the SAV-specific messages, if the destination address of the SAV-specific message is itself, it will terminate the message, otherwise, it will forward it based on the local RIB. Following this, the SAV-specific messages can propagate the SAV-specific Information between ASes.
-
-Moreover, if SAV-specific messages are used to exchange SAV-specific Information between ASes, a new SAV-specific communication mechanism would need to be developed to communicate the SAV-specific messages. The SAV-specific communication mechanism need to define the data structure or format to communicate the SAV-specific messages and the operations and timing for originating, processing, propagating, and terminating the messages. If an extension to an existing protocol is used to exchange SAV-specific Information, the corresponding existing protocol should not be affected. The SAV-specific message processor is the entity to support the SAV-specific communication mechanism. By parsing the SAV-specific messages, it obtains the ASN, the prefixes, the AS-level interfaces to receive the messages, and their incoming AS direction for maintaining the SIB. It is important to note that the SAV-specific message processor within an AS has the capability to establish connections with multiple SAV-specific message processors within different ASes, relying on either manual configurations by operators or an automatic mechanism.
-
-The need for a SAV-specific communication mechanism arises from the facts that the SAV-specific Information needs to be obtained and communicated between ASes. Different from the general information such as routing information from the RIB, there are no existing mechanisms which can support the perception and communication of SAV-specific Information between ASes. Hence, a SAV-specific communication mechanism is needed to provide a medium and set of rules to establish communication between different ASes for the exchange of SAV-specific Information.
-
-Additionally, the preferred AS paths of an AS may change over time due to route changes or network failures. The SAV-specific message processor should launch SAV-specific messages to adapt to the route changes in a timely manner.  The SAV-specific communication mechanism should handle route changes carefully to avoid false positives. The reasons for leading to false positives may include late detection of route changes, delayed message transmission, or packet losses. However, the detailed design of the SAV-specific communication mechanism for dealing with route changes is outside the scope of this document.
-
-## SAV Information Base Manager
-
-SAV Information Base Manager (SIM) consolidates SAV-related information from the SAV-specific Information and general information to initiate or update the SIB, while it generates SAV rules to populate the SAV table in the dataplane according to the SIB. The detailed collection methods of the SAV-related information depend on the deployment and implementation of the inter-domain SAV mechanisms and are out of scope for this document.
-
-Using the SIB, SIM produces &lt;Prefix, Interface&gt; pairs to populate the SAV table, which represents the prefix and its legitimate incoming interface. It is worth noting that the interfaces in the SIB are logical AS-level interfaces and need to be mapped to the physical interfaces of the AS border routers.
-
-## Management Channel and Information Channel
+# SAVNET Communication Channel
 
 ~~~~~~~~~~
 +------+
-|      |   Management Channel    +--------------------------------+ 
-|      |<========================|        Network Operators       |
-|      |                         +--------------------------------+
+|      |  SAV-specific Information Channel  +-----------------------------+ 
+|      |<===================================|      SAV Agent in AS 2      |
+|      |                                    +-----------------------------+
 |      |
-|      |   Information Channel   +--------------------------------+
-|      |<------------------------| SAV-specific Message Processor |
-|      |                         +--------------------------------+
-| SIM  |
-|      |   Information Channel   +--------------------------------+
-|      |<------------------------|   RPKI ROA Obj. and ASPA Obj.  |
-|      |                         +--------------------------------+
+|      |     General Information Channel    +-----------------------------+
+|      |<-----------------------------------| RPKI ROA Obj. and ASPA Obj. |
+|      |                                    +-----------------------------+
+| SAV  |
+|Agent |     General Information Channel    +-----------------------------+
+|  in  |<-----------------------------------|             RIB             |
+| AS 1 |                                    +-----------------------------+
 |      |
-|      |   Information Channel   +--------------------------------+
-|      |<------------------------|               RIB              |
-|      |                         +--------------------------------+
+|      |     General Information Channel    +-----------------------------+
+|      |<-----------------------------------|             FIB             |
+|      |                                    +-----------------------------+
+|      |
+|      |        Management Channel          +-----------------------------+
+|      |<-----------------------------------|      Network Operators      |
+|      |                                    +-----------------------------+
 +------+
 ~~~~~~~~~~
 {: #sav_agent_config title="The management channel and information channel for collecting SAV-related information from different SAV information sources"}
 
-The SAV-specific Information relies on the communication between SAV-specific message processors within ASes and the general information may be from multiple sources, such as the RIB and RPKI ROA objects and ASPA objects. Therefore, as illustrated in {{sav_agent_config}}, the SIM needs to receive the SAV-related information from these SAV information sources. We abstract the connections used to collect the SAV-related information from the sources as Information Channel. Also, the network operators can operate the SIB by manual configurations, such as YANG, CLI, RTBH {{RFC5635}}, and Flowspec {{RFC8955}}, where the approaches to implement these are abstracted as Management Channel.
+The SAV-specific Information relies on the communication between SAV Agents within ASes and the general information can be from multiple sources, such as RPKI ROA objects and ASPA objects, RIB, and FIB. Therefore, as illustrated in {{sav_agent_config}}, the SAV Agent needs to receive the SAV-related information from these SAV information sources. Besides, the SAV Agent also needs to accept the configurations from network operators for the management operations. The connections for collecting these types of information are abstracted as SAVNET communication channel, which includes SAV-specific information channel, general information channel, and management channel. 
 
-The primary purpose of the management channel is to deliver manual configurations of network operators. Examples of such information include, but are not limited to: 
+## SAV-specific Information Channel
+
+~~~~~~~~~~
++----------------------+                          +----------------------+
+|      AS 1 (P1)       |   SAV-specific Messages  |       AS 2 (P2)      |
+| +-----------------+  |       (P1, Itf.2)  Itf.2 |  +-----------------+ |
+| |       SAV       |--|--------------------------|->|       SAV       | |
+| |      Agent      |<-|--------------------------|--|      Agent      | |
+| +-----------------+  | Itf.1 (P2, Itf.1)        |  +-----------------+ |
++----------------------+   SAV-specific Messages  +----------------------+
+~~~~~~~~~~
+{: #sav_msg title="An example for Exchanging SAV-specific Information with SAV-specific Messages between AS1 and AS 2"}
+
+The SAV-specific information channel is the abstraction of the connections between ASes for communicating SAV-specific information. Each AS pair which deploys inter-domain SAVNET architecture has a SAV-specific information channel between. An AS can have multiple SAV-specific information channels with others. Within the SAV-specific information channel, the SAV-specific message is used to carry the SAV-specific information.
+
+{{sav_msg}} uses an example for exchanging SAV-specific information with SAV-specific messages between AS1 and AS 2. The SAV-specific Information is the information consisting of source prefixes and their legitimate incoming interfaces entering an AS, and the legitimate incoming interfaces are the interfaces where the packets whose source addresses are encompassed in the source prefixes come. Therefore, the SAV-specific Information can be expressed as &lt;Prefix, Interface&gt; pairs, e.g., (P1, Itf.2) and (P2, Itf.1) in {{sav_msg}}. It is noted that the same prefix may have different legitimate incoming interfaces for an AS, since the dataplane packets with the source addresses encompassed in the source prefixes may have different destination addresses.
+
+The SAV-specific Information can be exchanged between ASes by the SAV-specific messages. As shown in {{sav_msg}}, the SAV-specific messages are used to propagate or originate the SAV-specific Information between ASes by the SAV Agent. For an AS which initiates its own SAV-specific messages, the SAV Agent within the AS can obtain the next hop of the corresponding prefixes based on the local RIB and use SAV-specific messages to carry the AS's prefixes to the next hops for the corresponding destinations. This is achieved by setting the SAV-specific messages' destination addresses as the destination addresses in the local RIB. When the SAV Agents of other ASes receive the SAV-specific messages, they parse the messages to obtain the carried source prefixes, as well as the corresponding legitimate incoming interfaces by checking the interfaces which the SAV-specific messages arrive at. Meanwhile, the SAV Agents also check the destination addresses of the SAV-specific messages, if their destination addresses are ASes themselves, they will terminate the message; otherwise, they will forward them based on the local RIB. Following this, the SAV-specific messages can propagate the SAV-specific Information between ASes.
+
+Moreover, if SAV-specific messages are used to exchange SAV-specific Information between ASes, a new SAV-specific communication mechanism would need to be developed to communicate the SAV-specific messages. The SAV-specific communication mechanism needs to define the data structure or format to communicate the SAV-specific messages and the operations and timing for originating, processing, propagating, and terminating the messages. If an extension to an existing protocol is used to exchange SAV-specific Information, the corresponding existing protocol should not be affected. The SAV Agent is the entity to support the SAV-specific communication mechanism. By parsing the SAV-specific messages, it obtains the ASN, the prefixes, the AS-level interfaces to receive the messages, and their incoming AS direction for maintaining the SIB. It is important to note that the SAV Agent within an AS has the capability to establish connections with multiple SAV Agents within different ASes, relying on either manual configurations by operators or an automatic mechanism.
+
+The need for a SAV-specific communication mechanism arises from the facts that the SAV-specific Information needs to be obtained and communicated between ASes. Different from the general information such as routing information from the RIB, there are no existing mechanisms which can support the perception and communication of SAV-specific Information between ASes. Hence, a SAV-specific communication mechanism is needed to provide a medium and set of rules to establish communication between different ASes for the exchange of SAV-specific Information.
+
+Furthermore, an AS which initiates an SAV-specific message needs to assemble its source prefixes into the SAV-specific messages. In order to obtain all the source prefixes of an AS, the inter-domain SAVNET architecture can communicate with the intra-domain SAVNET architecture {{intra-domain-arch}} to obtain all the prefixes belonging to the AS.
+
+Additionally, the preferred AS paths of an AS may change over time due to route changes or network failures. The SAV Agent should launch SAV-specific messages to adapt to the route changes in a timely manner.  The SAV-specific communication mechanism should handle route changes carefully to avoid false positives. The reasons for leading to false positives may include late detection of route changes, delayed message transmission, or packet losses. However, the detailed design of the SAV-specific communication mechanism for dealing with route changes is outside the scope of this document.
+
+## General Information Channel
+
+The general information channel is the abstraction of the connections between ASes for communicating routing information or the connections between AS and RPKI cache servers for obtaining {prefix, maximum length, origin AS} and {AS, AS's Provider} information. The communication of the general information within the general information channel can rely on existing protocols, such as BGP and RTR {{RFC8210}}.
+
+
+## Management Channel
+
+The management channel is the abstraction of the connections between SAV Agent and network operators. The primary purpose of the management channel is to deliver manual configurations of network operators. Examples of the management configurations include, but are not limited to: 
 
 * SAV configurations using YANG, CLI, RTBH, or Flowspec.
 
@@ -340,9 +370,7 @@ The primary purpose of the management channel is to deliver manual configuration
 
 * Inter-domain SAVNET provisioning.
 
-Note that the information can be delivered at any time and requires reliable delivery for the management channel implementation.
-
-The information channel serves as a means to transmit the SAV-specific Information and general information from various sources including the RIB and RPKI ROA objects and RPKI ASPA Objects. Additionally, it can carry telemetry information, such as metrics pertaining to forwarding performance, the count of spoofing packets and discarded packets, provided that the inter-domain SAVNET has access to such data. The information channel can include information regarding the prefixes associated with the spoofing traffic, as observed until the most recent time. 
+Note that the configuration information can be delivered at any time and requires reliable delivery for the management channel implementation. Additionally, the management channel can carry telemetry information, such as metrics pertaining to forwarding performance, the count of spoofing packets and discarded packets, provided that the inter-domain SAVNET has access to such data. It can include information regarding the prefixes associated with the spoofing traffic, as observed until the most recent time. 
 
 # Use Cases
 
@@ -384,11 +412,9 @@ In order to prevent the source address spoofing, operators can enable ACL-based 
 
 {{no-export}} presents a scenario where the limited propagation of prefixes occurs due to the NO_EXPORT community attribute. In this scenario, AS 1 is a customer of AS 2, AS 2 is a customer of AS 4, AS 4 is a customer of AS 3, and AS 5 is a customer of both AS 3 and AS 4. The relationship between AS 1 and AS 4 can be either customer-to-provider (C2P) or peer-to-peer (P2P). AS 1 advertises prefixes P1 to AS 2 and adds the NO_EXPORT community attribute to the BGP advertisement sent to AS 2, preventing AS 2 from further propagating the route for prefix P1 to AS 4. Similarly, AS 1 adds the NO_EXPORT community attribute to the BGP advertisement sent to AS 4, resulting in AS 4 not propagating the route for prefix P6 to AS 3. Consequently, AS 4 only learns the route for prefix P1 from AS 1 in this scenario. Suppose AS 1 and AS 4 have deployed inter-domain SAV while other ASes have not, and AS 4 has deployed EFP-uRPF at its customer interfaces. 
 
-As analyzed in {{inter-domain-ps}}, at customer interface of AS 4 facing AS 2 in the scenario shown by {{no-export}}, existing uRPF-based SAV mechanisms would block the traffic with P1 as source addresses improperly, and thus suffering from the problem of false positives. If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P1 as source addresses can arrive at the interfaces facing AS 1 and AS 2. As a result, the false positive problem can be avoided.
+In this scenario, existing uRPF-based SAV mechanisms would block the traffic with P1 as source addresses improperly, and thus suffer from the problem of false positives {{inter-domain-ps}}. If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P1 as source addresses can arrive at the interfaces facing AS 1 and AS 2. As a result, the false positive problem can be avoided.
 
 ### Hidden Prefixes
-
-Some servers' source addresses are not advertised through BGP to other ASes. These addresses are unknown to the inter-domain routing system and are called hidden prefixes. As analyzed in {{inter-domain-ps}}, legitimate traffic with these hidden prefixes may be dropped by existing inter-domain SAV mechanisms, such as Strict uRPF, FP-uRPF, VRF uRPF, or EFP-uRPF, because they do not match any known prefix.
 
 ~~~~~~~~~~
                                 +----------------+
@@ -419,9 +445,9 @@ P3 is the anycast prefix and is only advertised by AS 3 through BGP.
 ~~~~~~~~~~
 {: #dsr title="A Direct Server Return (DSR) scenario."}
 
-{{dsr}} illustrates a direct server return (DSR) scenario where the anycast IP prefix P3 is only advertised by AS 3 through BGP. In this example, AS 3 is the provider of AS 4 and AS 5, AS 4 is the provider of AS 1, AS 2, and AS 5, and AS 2 is the provider of AS 1. AS 1 and AS 4 have deployed inter-domain SAV, while other ASes have not. When users in AS 2 send requests to the anycast destination IP, the forwarding path is AS 2->AS 4->AS 3. The anycast servers in AS 3 receive the requests and tunnel them to the edge servers in AS 1. Finally, the edge servers send the content to the users with source addresses in prefix P3. The reverse forwarding path is AS 1->AS 4->AS 2. Since AS 4 does not receive routing information for prefix P3 from AS 1, EFP-uRPF with algorithm A/B, and all other existing uRPF-based mechanisms at the customer interface of AS 4 facing AS 1 will improperly block the legitimate response packets from AS 1.
+{{dsr}} illustrates a direct server return (DSR) scenario where the anycast IP prefix P3 is only advertised by AS 3 through BGP. In this example, AS 3 is the provider of AS 4 and AS 5, AS 4 is the provider of AS 1, AS 2, and AS 5, and AS 2 is the provider of AS 1. AS 1 and AS 4 have deployed inter-domain SAV, while other ASes have not. When users in AS 2 send requests to the anycast destination IP, the forwarding path is AS 2->AS 4->AS 3. The anycast servers in AS 3 receive the requests and tunnel them to the edge servers in AS 1. Finally, the edge servers send the content to the users with source addresses in prefix P3. The reverse forwarding path is AS 1->AS 4->AS 2. 
 
-In contrast, if the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P3 as source addresses can arrive at the interfaces facing AS 1 and AS 3. As a result, the legitimate response packets with P3 as source addresses from AS 1 can be allowed and the false positive problem can be avoided.
+In this scenario, existing uRPF-based mechanisms will improperly block the legitimate response packets from AS 1 at the customer interface of AS 4 facing AS 1 {{inter-domain-ps}}. In contrast, if the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P3 as source addresses can arrive at the interfaces facing AS 1 and AS 3. As a result, the legitimate response packets with P3 as source addresses from AS 1 can be allowed and the false positive problem can be avoided.
 
 ### Reflection Attacks {#reflection_attack_customer}
 
@@ -457,7 +483,7 @@ AS 2 or connected to AS 2 through other ASes.
 
 {{customer-reflection-attack}} depicts the scenario of reflection attacks by source address spoofing within a customer cone. The reflection attack by source address spoofing takes place within AS 4's customer cone, where the attacker spoofs the victim's IP address (P1) and sends requests to servers' IP address (P5) that are designed to respond to such requests. As a result, the server sends overwhelming responses back to the victim, thereby exhausting its network resources. The arrows in {{customer-reflection-attack}} illustrate the commercial relationships between ASes. AS 3 serves as the provider for AS 4 and AS 5, while AS 4 acts as the provider for AS 1, AS 2, and AS 5. Additionally, AS 2 is the provider for AS 1. Suppose AS 1 and AS 4 have deployed inter-domain SAV, while the other ASes have not.
 
-As analyzed in {{inter-domain-ps}}, if AS 4 deploys EFP-uRPF with algorithm A/B at its customer interfaces, it will allow packets with source addresses in P1 to originate from AS 1 and AS 2. Consequently, when AS 2 sends spoofing packets with source addresses in P1 to AS 4, AS 4 will improperly permit these packets, thus enabling the spoofing attacks to propagate. If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P1 as source addresses can only arrive at the interface facing AS 1. Therefore, at the interface of AS 4 facing AS 2, the spoofing traffic can be blocked.
+In this scenario, EFP-uRPF with algorithm A/B will improperly permit the spoofing attacks originating from AS 2 {{inter-domain-ps}}. If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P1 as source addresses can only arrive at the interface facing AS 1. Therefore, at the interface of AS 4 facing AS 2, the spoofing traffic can be blocked.
 
 ### Direct Attacks {#direct_attack_customer}
 
@@ -493,7 +519,7 @@ AS 2 or connected to AS 2 through other ASes.
 
 {{customer-direct-attack}} portrays a scenario of direct attacks by source address spoofing within a customer cone and is used to analyze the gaps of uRPF-based mechanisms below. The direct attack by source address spoofing takes place within AS 4's customer cone, where the attacker spoofs a source address (P5) and directly targets the victim's IP address (P1), overwhelming its network resources. The arrows in {{customer-direct-attack}} illustrate the commercial relationships between ASes. AS 3 serves as the provider for AS 4 and AS 5, while AS 4 acts as the provider for AS 1, AS 2, and AS 5. Additionally, AS 2 is the provider for AS 1. Suppose AS 1 and AS 4 have deployed inter-domain SAV, while the other ASes have not.
 
-As analyzed in {{inter-domain-ps}}, if AS 4 deploys EFP-uRPF with algorithm A/B at its customer interfaces, it will allow packets with source addresses in P5 to originate from AS 1, AS 2, and AS 5. Consequently, when AS 2 sends spoofing packets with source addresses in P5 to AS 4, AS 4 will improperly permit these packets, thus enabling the spoofing attacks to propagate. If the inter-domain SAVNET architecture is deployed, AS 5 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P5 as source addresses can arrive at the interface facing AS 3 and AS 5. Therefore, at the interface of AS 4 facing AS 2, the spoofing traffic can be blocked.
+In this scenario, EFP-uRPF with algorithm A/B will improperly permit the spoofing attacks {{inter-domain-ps}}. If the inter-domain SAVNET architecture is deployed, AS 5 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P5 as source addresses can arrive at the interface facing AS 3 and AS 5. Therefore, at the interface of AS 4 facing AS 2, the spoofing traffic can be blocked.
 
 ## SAV at Provider/Peer Interfaces {#sav_at_p}
 
@@ -533,9 +559,7 @@ AS 3 or connected to AS 3 through other ASes.
 
 {{reflection-attack-p}} depicts the scenario of reflection attacks by source address spoofing from provider/peer AS. In this case, the attacker spoofs the victim's IP address (P1) and sends requests to servers' IP address (P2) that respond to such requests. The servers then send overwhelming responses back to the victim, exhausting its network resources. The arrows in {{reflection-attack-p}} represent the commercial relationships between ASes. AS 3 acts as the provider or lateral peer of AS 4 and the provider for AS 5, while AS 4 serves as the provider for AS 1, AS 2, and AS 5. Additionally, AS 2 is the provider for AS 1. Suppose AS 1 and AS 4 have deployed inter-domain SAV, while the other ASes have not.
 
-If ACL-based ingress filtering or source-based RTBH filtering is deployed and performs SAV at the interface of AS 4 facing AS 3, in order to avoid improper block or improper permit, operators need to updated the configurations manually and additional operational overhead will be induced {{inter-domain-ps}}. Loose uRPF can greatly reduce the operational overhead because it uses the local FIB as information source, and can adapt to changes in the network. However, it may improperly permit spoofed packets. In {{reflection-attack-p}}, Loose uRPF is enabled at AS 4's provider/peer interface, while EFP-uRPF is enabled at AS 4's customer interfaces, following {{RFC3704}}. An attacker inside AS 3 or connected to it through other ASes may send packets with source addresses spoofing P1 to a server in AS 2 to attack the victim in AS 1. As AS 3 lacks deployment of inter-domain SAV, the attack packets will reach AS 4's provider/peer interface. With Loose uRPF, AS 4 cannot block the reflection attack packets at its provider/peer interface, and thus resulting in false negatives.
-
-If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P1 as source addresses can arrive at the interface facing AS 1 and AS 2. Therefore, at the interface of AS 4 facing AS 3, the spoofing traffic can be blocked.
+Both ACL-based ingress filtering and source-based RTBH filtering will induce additional operational overhead, and Loose uRPF may improperly permit spoofed packets {{inter-domain-ps}}. If the inter-domain SAVNET architecture is deployed, AS 1 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P1 as source addresses can arrive at the interface facing AS 1 and AS 2. Therefore, at the interface of AS 4 facing AS 3, the spoofing traffic can be blocked.
 
 ### Direct Attacks {#direct_attack_p}
 
@@ -571,19 +595,17 @@ AS 3 or connected to AS 3 through other ASes.
 
 {{direct-attack-p}} showcases a scenario of direct attack by source address spoofing from provider/peer AS. In this case, the attacker spoofs another source address (P2) and directly targets the victim's IP address (P1), overwhelming its network resources. The arrows in {{direct-attack-p}} represent the commercial relationships between ASes. AS 3 acts as the provider or lateral peer of AS 4 and the provider for AS 5, while AS 4 serves as the provider for AS 1, AS 2, and AS 5. Additionally, AS 2 is the provider for AS 1. Suppose AS 1 and AS 4 have deployed inter-domain SAV, while the other ASes have not.
 
-Similar to the scenario of reflection attacks by source address spoofing depicted in {{reflection-attack-p}}, both ACL-based ingress filtering and Source-based RTBH filtering have high operational overhead for the scenario of direct attacks by source address spoofing from provider/peer AS shown in {{direct-attack-p}}. Otherwise, they may cause improper block of legitimate traffic or improper permit of spoofing traffic {{inter-domain-ps}}. Also, Loose uRPF can improperly permit spoofed packets. In {{direct-attack-p}}, Loose uRPF is enabled at AS 4's provider/peer interface, while EFP-uRPF is enabled at AS 4's customer interfaces, following {{RFC3704}}. An attacker inside AS 3 or connected to it through other ASes may send packets with source addresses spoofing P2 and destimation addresses in P1 to directly attack the victim in AS 1. As AS 3 lacks deployment of inter-domain SAV, the attack packets will reach AS 4's provider/peer interface. With Loose uRPF, AS 4 cannot block the direct attack packets at its provider/peer interface, and thus resulting in false negatives.
+Also, in this scenario, Both ACL-based ingress filtering and source-based RTBH filtering will induce additional operational overhead, and Loose uRPF may improperly permit spoofed packets {{inter-domain-ps}}. If the inter-domain SAVNET architecture is deployed, AS 2 can communicate the SAV-specific information to AS 4 and AS 4 will be aware that the traffic with P2 as source addresses can only arrive at the interface facing AS 2. Therefore, at the interface of AS 4 facing AS 3, the spoofing traffic can be blocked.
 
-If the inter-domain SAVNET architecture is deployed, AS 2 can communicate the SAV-specific information to AS 4 and AS 4 will be aware of that the traffic with P2 as source addresses can only arrive at the interface facing AS 2. Therefore, at the interface of AS 4 facing AS 3, the spoofing traffic can be blocked.
-
-# Partial/Incremental Deployment
+# Partial/Incremental Deployment Considerations
 
 The inter-domain SAVNET architecture MUST ensure support for partial/incremental deployment as it is not feasible to deploy it simultaneously in all ASes. The partial/incremental deployment of the inter-domain SAVNET architecture consists of different aspects, which include the partial/incremental deployment of the architecture and the partial/incremental deployment of the information sources. 
 
 Within the architecture, the general information like the prefixes and topological information from RPKI ROA Objects and ASPA Objects and the routing information from the RIB can be obtained locally when the corresponding sources are available. Even when both SAV-specific Information and the information from RPKI ROA Objects and ASPA Objects are not available, the routing information from the RIB can be used to generate SAV rules.
 
-Furthermore, it is not mandatory for all ASes to deploy SAV-specific message processors for SAV-specific Information. Instead, a SAV-specific message processor should be able to effortlessly establish a logical neighboring relationship with another AS that has deployed a SAV-specific message processor. The connections for communicating SAV-specific Information can be achieved by manual configurations set by operators or an automatic neighbor discovery mechanism. This flexibility enables the architecture to accommodate varying degrees of deployment, promoting interoperability and collaboration among participating ASes. During the partial/incremental deployment of SAV-specific message processor, the SAV-specific Information for the ASes which do not deploy SAV-specific message processor can not be obtained. To protect the prefixes of these ASes, inter-domain SAVNET architecture can use the SAV-related information from the general information in the SIB to generate SAV rules. At least, the routing information from the RIB can be always available in the SIB.
+Furthermore, it is not mandatory for all ASes to deploy SAV Agents for SAV-specific Information. Instead, a SAV Agent should be able to effortlessly establish a logical neighboring relationship with another AS that has deployed a SAV Agent. The connections for communicating SAV-specific Information can be achieved by manual configurations set by operators or an automatic neighbor discovery mechanism. This flexibility enables the architecture to accommodate varying degrees of deployment, promoting interoperability and collaboration among participating ASes. During the partial/incremental deployment of SAV Agent, the SAV-specific Information for the ASes which do not deploy SAV Agent can not be obtained. To protect the prefixes of these ASes, inter-domain SAVNET architecture can use the SAV-related information from the general information in the SIB to generate SAV rules. At least, the routing information from the RIB can be always available in the SIB.
 
-As more ASes adopt the inter-domain SAVNET architecture, the "deployed area" expands, thereby increasing the collective defense capability against source address spoofing. Furthermore, if multiple "deployed areas" can be logically interconnected across "non-deployed areas", these interconnected "deployed areas" can form a logical alliance, providing enhanced protection against address spoofing. Especially, along with more ASes deploy SAV-specific message processor and support the communication of SAV-specific Information, the generated SAV rules of the inter-domain SAVNET architecture to protect these ASes will become more accurate, as well as enhancing the protection capability against source address spoofing for the inter-domain SAVNET architecture.
+As more ASes adopt the inter-domain SAVNET architecture, the "deployed area" expands, thereby increasing the collective defense capability against source address spoofing. Furthermore, if multiple "deployed areas" can be logically interconnected across "non-deployed areas", these interconnected "deployed areas" can form a logical alliance, providing enhanced protection against address spoofing. Especially, along with more ASes deploy SAV Agent and support the communication of SAV-specific Information, the generated SAV rules of the inter-domain SAVNET architecture to protect these ASes will become more accurate, as well as enhancing the protection capability against source address spoofing for the inter-domain SAVNET architecture.
 
 In addition, releasing the SAV functions of the inter-domain SAVNET architecture incrementally is one potential way to reduce the deployment risks and can be considered in its deployment by network operators:
 
@@ -597,7 +619,7 @@ In addition, releasing the SAV functions of the inter-domain SAVNET architecture
 
 Convergence issues SHOULD be carefully considered in inter-domain SAV mechanisms due to the dynamic nature of the Internet. Internet routes undergo continuous changes, and SAV rules MUST proactively adapt to these changes, such as prefix and topology changes, in order to prevent false positives and reduce false negatives. To effectively track these changes, the SIM should promptly collect SAV-related information from various SAV information sources and consolidate them in a timely manner.
 
-In particular, it is essential for the SAV-specific message processors to proactively communicate the changes of the SAV-specific Information between ASes and adapt to route changes promptly. However, during the routing convergence process, the traffic paths of the source prefixes can undergo rapid changes within a short period. The changes of the SAV-specific Information may not be communicated in time between ASes to update SAV rules, false positives or false negatives may happen. Such inaccurate validation is caused by the delays in communicating SAV-specific Information between ASes, which occur due to the factors like packet losses, unpredictable network latencies, or message processing latencies. The design of the SAV-specific communication mechanism should consider these issues to reduce the inaccurate validation.
+In particular, it is essential for the SAV Agents to proactively communicate the changes of the SAV-specific Information between ASes and adapt to route changes promptly. However, during the routing convergence process, the traffic paths of the source prefixes can undergo rapid changes within a short period. The changes of the SAV-specific Information may not be communicated in time between ASes to update SAV rules, false positives or false negatives may happen. Such inaccurate validation is caused by the delays in communicating SAV-specific Information between ASes, which occur due to the factors like packet losses, unpredictable network latencies, or message processing latencies. The design of the SAV-specific communication mechanism should consider these issues to reduce the inaccurate validation.
 
 Besides, for the inter-domain SAVNET architecture, the potential ways to deal with the inaccurate validation issues during the convergence of the SAV-specific communication mechanism is to consider using the information from RPKI ROA Objects and ASPA objects to generate SAV rules until the convergence process of the SAV-specific communication mechanism is finished, since these information is more stable and can help avoid false positives, and thus avoiding the impact to the legitimate traffic.
 
@@ -615,7 +637,7 @@ By adhering to these rules, the management of SAV information sources and relate
 
 # Security Considerations {#Security}
 
-In the inter-domain SAVNET architecture, the SAV-specific message processor plays a crucial role in generating and disseminating SAV-specific Messages across different ASes. To safeguard against the potential risks posed by a malicious AS generating incorrect or forged SAV-specific Messages, it is important for the SAV-specific message processors to employ security authentication measures for each received SAV-specific Message. The majour security threats faced by inter-domain SAVNET can be categorized into two aspects: session security and content security. Session security pertains to verifying the identities of both parties involved in a session and ensuring the integrity of the session content. Content security, on the other hand, focuses on verifying the authenticity and reliability of the session content, thereby enabling the identification of forged SAV-specific Messages.
+In the inter-domain SAVNET architecture, the SAV Agent plays a crucial role in generating and disseminating SAV-specific Messages across different ASes. To safeguard against the potential risks posed by a malicious AS generating incorrect or forged SAV-specific Messages, it is important for the SAV Agents to employ security authentication measures for each received SAV-specific Message. The majour security threats faced by inter-domain SAVNET can be categorized into two aspects: session security and content security. Session security pertains to verifying the identities of both parties involved in a session and ensuring the integrity of the session content. Content security, on the other hand, focuses on verifying the authenticity and reliability of the session content, thereby enabling the identification of forged SAV-specific Messages.
 
 The threats to session security include:
 
@@ -631,7 +653,7 @@ The threats to content security include:
 
 * Path deviation: A malicious router intentionally diverts a SAV-specific Message to an incorrect next-hop AS, contrary to the expected path defined by the AS Path. By deviating from the intended routing path, the attacker can disrupt the proper dissemination of SAV-related information and introduce inconsistencies or conflicts in the validation process. This can undermine the effectiveness and accuracy of source address validation within the inter-domain SAVNET architecture.
 
-Overall, inter-domain SAVNET shares similar security threats with BGP and can leverage existing BGP security mechanisms to enhance both session and content security. Session security can be enhanced by employing session authentication mechanisms used in BGP, such as MD5, TCP-AO, or Keychain. Similarly, content security can benefit from the deployment of existing BGP security mechanisms like RPKI, BGPsec, and ASPA. While these mechanisms can address content security threats, their widespread deployment is crucial. Until then, it is necessary to develop an independent security mechanism specifically designed for inter-domain SAVNET. One potential approach is for each origin AS to calculate a digital signature for each AS path and include these digital signatures within the SAV-specific Messages. Upon receiving a SAV-specific Message, the SAV-specific message processor can verify the digital signature to ascertain the message's authenticity. Furthermore, it is worth noting that the information channel of the inter-domain SAVNET architecture may need to operate over a network link that is currently under a source address spoofing attack. As a result, it may experience severe packet loss and high latency due to the ongoing attack, and the implementation of the information channel should ensure uninterrupted communication. Detailed security designs and considerations will be addressed in a separate draft, ensuring the robust security of inter-domain SAVNET.
+Overall, inter-domain SAVNET shares similar security threats with BGP and can leverage existing BGP security mechanisms to enhance both session and content security. Session security can be enhanced by employing session authentication mechanisms used in BGP, such as MD5, TCP-AO, or Keychain. Similarly, content security can benefit from the deployment of existing BGP security mechanisms like RPKI, BGPsec, and ASPA. While these mechanisms can address content security threats, their widespread deployment is crucial. Until then, it is necessary to develop an independent security mechanism specifically designed for inter-domain SAVNET. One potential approach is for each origin AS to calculate a digital signature for each AS path and include these digital signatures within the SAV-specific Messages. Upon receiving a SAV-specific Message, the SAV Agent can verify the digital signature to ascertain the message's authenticity. Furthermore, it is worth noting that the information channel of the inter-domain SAVNET architecture may need to operate over a network link that is currently under a source address spoofing attack. As a result, it may experience severe packet loss and high latency due to the ongoing attack, and the implementation of the information channel should ensure uninterrupted communication. Detailed security designs and considerations will be addressed in a separate draft, ensuring the robust security of inter-domain SAVNET.
 
 # Privacy Considerations
 
@@ -652,15 +674,15 @@ This document does not cover administrative or business agreements that may be e
 
 This document makes the following assumptions:
 
-* All ASes where the inter-domain SAVNET is deployed are assumed to provide the necessary connectivity between SAV-specific message processor and any intermediate network elements. However, the architecture does not impose any specific limitations on the form or nature of this connectivity. 
+* All ASes where the inter-domain SAVNET is deployed are assumed to provide the necessary connectivity between SAV Agent and any intermediate network elements. However, the architecture does not impose any specific limitations on the form or nature of this connectivity. 
 
-* Congestion and resource exhaustion can occur at various points in the inter-domain networks. Hence, in general, network conditions should be assumed to be hostile. The inter-domain SAVNET architecture must be capable of functioning reliably under all circumstances, including scenarios where the paths for delivering SAV-related information are severely impaired. It is crucial to design the inter-domain SAVNET system with a high level of resilience, particularly under extremely hostile network conditions. The architecture should ensure uninterrupted communication between inter-domain SAV-specific message processors, even when data-plane traffic saturates the link.
+* Congestion and resource exhaustion can occur at various points in the inter-domain networks. Hence, in general, network conditions should be assumed to be hostile. The inter-domain SAVNET architecture must be capable of functioning reliably under all circumstances, including scenarios where the paths for delivering SAV-related information are severely impaired. It is crucial to design the inter-domain SAVNET system with a high level of resilience, particularly under extremely hostile network conditions. The architecture should ensure uninterrupted communication between inter-domain SAV Agents, even when data-plane traffic saturates the link.
 
 * The inter-domain SAVNET architecture does not impose rigid requirements for the SAV information sources that can be used to generate SAV rules. Similarly, it does not dictate strict rules on how to utilize the SAV-related information from diverse sources or perform SAV in the dataplane. Network operators have the flexibility to choose their approaches to generate SAV rules and perform SAV based on their specific requirements and preferences. Operators can either follow the recommendations outlined in the inter-domain SAVNET architecture or manually specify the rules for governing the use of SAV-related information, the generation of SAV rules, and the execution of SAV in the dataplane. 
 
 * The inter-domain SAVNET architecture does not impose restrictions on the selection of the local AS with which AS to communicate SAV-specific Information. The ASes have the flexibility to establish connections for SAV-specific communication based on the manual configurations set by operators or other automatic mechanisms. 
 
-* The inter-domain SAVNET architecture provides the flexibility to accommodate Quality-of-Service (QoS) policy agreements between SAVNET-enabled ASes or local QoS prioritization measures, but it does not make assumptions about their presence. These agreements or prioritization efforts are aimed at ensuring the reliable delivery of SAV-specific Information between SAV-specific message processors. It is important to note that QoS is considered as an operational consideration rather than a functional component of the inter-domain SAVNET architecture. 
+* The inter-domain SAVNET architecture provides the flexibility to accommodate Quality-of-Service (QoS) policy agreements between SAVNET-enabled ASes or local QoS prioritization measures, but it does not make assumptions about their presence. These agreements or prioritization efforts are aimed at ensuring the reliable delivery of SAV-specific Information between SAV Agents. It is important to note that QoS is considered as an operational consideration rather than a functional component of the inter-domain SAVNET architecture. 
 
 * The information and management channels are loosely coupled and are used for collecting SAV-related information from different sources, and how the inter-domain SAVNET synchronize the management and operation configurations is out of scope of this document.
 
@@ -681,4 +703,4 @@ Many thanks to Igor Lubashev for the significantly helpful revision suggestions.
 # Acknowledgements {#Acknowledgements}
 {: numbered="false"}
 
-Many thanks to Alvaro Retana, Kotikalapudi Sriram, Rüdiger Volk, Xueyan Song, Ben Maddison, Jared Mauch, Joel Halpern, Aijun Wang, Jeffrey Haas, Xiangqing Chang, Changwang Lin, Mingxing Liu, Zhen Tan, etc. for their valuable comments on this document.
+Many thanks to Alvaro Retana, Kotikalapudi Sriram, Rüdiger Volk, Xueyan Song, Ben Maddison, Jared Mauch, Joel Halpern, Aijun Wang, Jeffrey Haas, Xiangqing Chang, Changwang Lin, Mingxing Liu, Zhen Tan, Yuanyuan Zhang, Yangyang Wang, etc. for their valuable comments on this document.
