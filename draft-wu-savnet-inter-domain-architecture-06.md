@@ -99,7 +99,7 @@ informative:
 
 --- abstract
 
-This document introduces an inter-domain SAVNET architecture, providing a comprehensive framework for guiding the design of inter-domain SAV mechanisms. The proposed architecture empowers ASes to generate SAV rules by sharing SAV-specific information between themselves, which can be used to generate more accurate and trustworthy SAV rules in a timely manner compared to the general information. During the incremental or partial deployment of SAV-specific information, when SAV-specific information for an AS is unavailable, it can rely on general information to generate SAV rules. Rather than delving into protocol extensions or implementations, this document primarily concentrates on proposing SAV-specific and general information and guiding how to utilize them to generate SAV rules. It also defines the architectural components and their relations.
+This document introduces an inter-domain SAVNET architecture for performing AS-level SAV, providing a comprehensive framework for guiding the design of inter-domain SAV mechanisms. The proposed architecture empowers ASes to generate SAV rules by sharing SAV-specific information between themselves, which can be used to generate more accurate and trustworthy SAV rules in a timely manner compared to the general information. During the incremental or partial deployment of SAV-specific information, when SAV-specific information for an AS is unavailable, it can rely on general information to generate SAV rules. Rather than delving into protocol extensions or implementations, this document primarily concentrates on proposing SAV-specific and general information and guiding how to utilize them to generate SAV rules. It also defines the architectural components and their relations.
 
 --- middle
 
@@ -198,52 +198,43 @@ Other design goals, such as low operational overhead and easy implementation, ar
 # Inter-domain SAVNET Architecture Overview
 
 ~~~~~~~~~~
-                                                +--------------------+
-                                                |AS 3((P3), Provider)|
-                                                +---------------+/\--+
-                                   BGP{            / (P2C)        |
-                                   P5[AS 5, AS 3] /               |
-                                   P3[AS 3]      /                |
-                                      }         /                 |
-                                          Itf.1/                  |
-              +------------------------------+\/+----+            |BGP{
-              |                  AS X                |            | P5[AS 5]
-              |  +--------------------------------+  |            |   }
-              |  |          SAVNET Agent          |<-|------------|--------
-              |  +--------------------------------+  |            |       |
-              +-+/\+/\+--------------+/\+/\+------+/\+            |       |
-          Itf.2.1/  /Itf.2.2    Itf.3.1|  |Itf.3.2  \Itf.4        |       |
-BGP{            /  /SAV-specific       |  |          \ BGP{       |       |
-P6[AS 1, AS 2] /  / Message{           |  |           \ P5[AS 5]  |       |
-P2[AS 2]      /  /  (P1, AS2)          |  |            \  }       |       |
-   }         /  /   (P6, AS2)          |  |             \(C2P)    |(C2P)  |
-            /  /    }                  |  |       +--------------------+  |
-           /  /(C2P)                   |  |       |AS 5((P5), Customer)|  |
-+--------------------+                 |  |       +--------------------+  |
-|AS 2((P2), Customer)|                 |  |                               |
-+----------+/\+------+                 |  | BGP{                          |
-             \ SAV-specific            |  | P1[AS 1]                      |
-     BGP{     \ Message{               |  | P6[AS 1, NO_EXPORT]           |
-      P6[AS 1] \ (P1, AS2)             |  |    }                          |
-      P1[AS 1,  \ (P6, AS2)            |  |                               |
-      NO_EXPORT] \ }                   |  |                    ROA & ASPA |
-        }         \ (C2P)              |  |(C2P)            Obj./IRR Data |
-        +-------------------------------------+                           |
-        |      AS 1((P1, P6), Customer)       |              +-------------+
-        | +--------------------------------+  |  ROA & ASPA  | RPKI Cache  |
-        | |         SAVNET Agent           |<-|--------------|Server/IRR DB|
-        | +--------------------------------+  |Obj./IRR Data +-------------+
-        +-------------------------------------+
+ +------------------------+       +--------------------+
+ |RPKI Cache Server/IRR DB|       | AS X's Provider AS |
+ +------------------------+       +------------+/\+/\+-+
+   ROA & ASPA |            BGP      /            |  |
+Obj./IRR Data |            Message /             |  |
+              |                   /              |  | BGP
++-----------+\/+----------------+\/+-+           |  | Message
+|                AS X                |  BGP  +--------------+
+| +--------------------------------+ |<------|AS X's Lateral|          
+| |          SAVNET Agent          | |Message|   Peer  AS   |
+| +--------------------------------+ |       +--------------+
++-----+/\+/\+----------------+/\+/\+-+
+        |  |                   |  |
+BGP     |  | SAV-specific      |  |
+Message |  | Message           |  |
++------------------+           |  |
+|AS X's Customer AS|           |  |
++-------+/\+-------+           |  |
+          \                    |  |
+    BGP    \  SAV-specific     |  | BGP
+    Message \ Message          |  | Message
+    +------------------------------------+
+    |          AS X's Customer AS        |
+    | +--------------------------------+ |
+    | |         SAVNET Agent           | |
+    | +--------------------------------+ |
+    +------------------------------------+
 ~~~~~~~~~~
 {: #expcase title="Inter-domain SAVNET architecture."}
 
-{{expcase}} shows the inter-domain SAVNET architecture. It displays an example of AS topology and the communicated SAV-related information between ASes, as well as the one between ASes and the RPKI cache server. As shown in {{expcase}}, AS X has six AS-level interfaces. Specifically, Itf.1 is connected to AS 3, Itf.2.1 and Itf.2.2 to AS 2, Itf.3.1 and Itf.3.2 to AS 1, and Itf.4 to AS 5. Peer ASes may have multiple links. The arrows in the figure represent the direction of SAV-related information from its relative source to AS X. AS 3 is the provider of AS X and AS 5, while AS X is the provider of AS 1, AS 2, and AS 5, and AS 2 is the provider of AS 1. Prefixes P1, P2, P3, P4, P5, and P6 are the prefixes of AS 1, AS 2, AS 3, AS X, AS 5, and AS 1, repsectively, and assuming P1, P2, P3, P4, P5, and P6 are all the prefixes in the network.
+{{expcase}} provides an overview of the inter-domain SAVNET architecture, showcasing the AS topology and the flow of SAV-related information among ASes. It also highlights the connections between ASes and RPKI cache server or IRR database. To capture the full spectrum of AS relationships in the Internet, we consider all peer ASes of AS X, including customers, lateral peers, and providers, displaying the existence of multiple physical links between ASes. Arrows in the figure indicate the direction of SAV-related information from its source to AS X. As depicted in {{expcase}}, SAV-related information is conveyed through various mediums such as SAV-specific messages, BGP messages, RPKI ROA and ASPA objects, and IRR data. Based on this information, AS X generates SAV rules.
 
-In {{expcase}}, AS 1 and AS X have deployed the inter-domain SAVNET architecture. Therefore, AS 1 and AS X would generate SAV rules to perform inter-domain SAV. We use AS X as an example to illustrate that what SAV-related information the SAVNET agent within AS X will collect and where these information are from. AS X can obtain the SAV-specific information which includes AS 1's prefixes and their incoming direction to enter AS X (i.e., (P1, AS2) and (P6, AS2)) from AS 1, this is because AS 1 has deployed the inter-domain SAVNET architecture and can deliver its SAV-specific information to AS X. Moreover, AS X can also obtain the local routing information including prefixes P1, P2, P3, P4, P5, and P6 from the RIB, which originates from the BGP update messages of AS 1, AS 2, AS 3, and AS 5. In addition, AS 1 and AS X have deployed RPKI and upload their ROA and ASPA objects, thus AS X can obtain the RPKI ROA and ASPA objects of AS 1 from the RPKI cache server.
+As displayed in {{expcase}}, AS X and one of its customer ASes have deployed the inter-domain SAVNET architecture. Therefore, they could generate SAV rules to perform inter-domain SAV. We use AS X as the representative to illustrate that what SAV-related information the SAVNET agent within AS X will collect and where these information are from. AS X can obtain SAV-specific information which is carried by SAV-specific message from its customer AS through its another customer AS which does not deploy inter-domain SAVNET architecture. In {{expcase}}, AS X's customer AS which deploy the inter-domain SAVNET architecture delivers its SAV-specific information to AS X. Moreover, AS X can also obtain the local routing information, which originates from the BGP update messages of its neighbor ASes. In addition, AS X can obtain the RPKI ROA and ASPA objects from the RPKI cache server and IRR data from the IRR database. 
 
-Based on these SAV-related information, AS X generates SAV rules. As shown in {{expcase}}, the SAV-specific information consists of the prefixes and their legitimate incoming directions explicitly, and when prefixes or routes change, the SAVNET agent of AS 1 can launch the SAV-specific messages timely to update the SAV-specific information, and when the SAVNET agent of AS X receives the SAV-specific messages from AS 1, it will validate the messages to check whether the SAV-specific information emcompassed in them are real and correct. As a result, the SAV-specific information is more accurate than the general information and can be updated in a timely manner and trustworthy like the local routing information. Therefore, when the SAV-specific information is available, the inter-domain SAVNET will use them to generate SAV rules. It is also worth noting that the inter-domain SAVNET performs AS-level SAV.
+SAV-specific information consists of the prefixes and their legitimate incoming directions explicitly, and when prefixes or routes change, the SAVNET agent can launch the SAV-specific messages timely to update the SAV-specific information. Additionally, when the SAVNET agent of AS X communicates SAV-specific messages, it will validate whether the SAV-specific connections for communicating SAV-specific messages are authentic connections from autheticated ASes. As a result, SAV-specific information is more accurate than the general information and can be updated in a timely manner and trustworthy like the local routing information. Therefore, when SAV-specific information is available, inter-domain SAVNET will use them to generate SAV rules. It is also worth noting that the inter-domain SAVNET performs AS-level inter-domain SAV.
 
-In the incremental/partial deployment stage of the inter-domain SAVNET architecture, when the SAV-specific information is unavailable, the inter-domain SAVNET architecture can leverage general information to generate SAV rules. If both the RPKI ROA and ASPA objects and local routing information are available, it is recommended to use the RPKI ROA and ASPA objects to generate SAV rules. Since compared to the local routing information, they can provide authoritative prefixes and topological information and are more stable. The systematic recommendations for the utilizations of these SAV-related information and the corresponding rationale will be illustrated in {{sib-sec}}.
+In the incremental/partial deployment stage of the inter-domain SAVNET architecture, when SAV-specific information of ASes which do not deploy inter-domain SAVNET architecture is unavailable, the inter-domain SAVNET architecture can leverage general information, such as RPKI ROA and ASPA objects, local routing information, and IRR data, to generate SAV rules. If all these general information is available, it is recommended to use the RPKI ROA and ASPA objects to generate SAV rules. Since compared to the local routing information and IRR data, they can provide authoritative prefixes and topological information and have less improper blocks. The systematic recommendations for the utilizations of these SAV-related information and the corresponding rationale will be illustrated in {{sib-sec}}.
 
 ~~~~~~~~~~
 +-----------------------------------------------------------+
@@ -252,7 +243,7 @@ In the incremental/partial deployment stage of the inter-domain SAVNET architect
                                            | SAV-specific
                                            | Messages
 +-----------------------------------------------------------+
-|                           AS 4           |                |
+|                           AS X           |                |
 | +-------------------------------------------------------+ |                                      
 | |                      SAVNET Agent      |              | |
 | |                                       \/              | |
@@ -480,30 +471,30 @@ In order to prevent the source address spoofing, operators can enable ACL-based 
 ~~~~~~~~~~
                         +----------------+
                         |    AS 3(P3)    |
-                        +-+/\-----+/\+---+
-                           /        \
-                 P3[AS 3] /          \ P3[AS 3]
-                         /            \
-                        / (C2P)        \
-               +----------------+       \
-               |    AS 4(P4)    |        \
-               ++/\+/\+/\+/\+/\++         \
-                 /  /  |  |    \           \
-       P2[AS 2] /  /   |  |     \           \
-               /  /    |  |      \           \
-              /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-             /  /      |  |        \           \
-            /  /(C2P)  |  |         \           \
-+----------------+     |  |          \           \    
-|    AS 2(P2)    |     |  | P1[AS 1]  \           \
-+--------+/\+----+     |  | P6[AS 1]   \           \
-           \           |  | NO_EXPORT   \           \
-   P1[AS 1] \          |  |              \           \
-   NO_EXPORT \         |  |               \           \
-              \ (C2P)  |  | (C2P/P2P) (C2P)\     (C2P) \
-           +----------------+           +----------------+
-           |  AS 1(P1, P6)  |           |    AS 5(P5)    |
-           +----------------+           +----------------+
+                        +-+/\-----+/\+/\++
+                           /        \  \
+                 P3[AS 3] /          \  \ P3[AS 3]
+                         /            \  \
+                        / (C2P)        \  \
+               +----------------+       \  \
+               |    AS 4(P4)    |        \  \
+               ++/\+/\+/\+/\+/\++         \  \
+                 /  /  |  |    \           \  \
+       P2[AS 2] /  /   |  |     \           \  \
+               /  /    |  |      \           \  \
+              /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+             /  /      |  |        \           \  \
+            /  /(C2P)  |  |         \           \  \
++----------------+     |  |          \           \  \  
+|    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
++--------+/\+----+     |  | P6[AS 1]   \           \  \
+           \           |  | NO_EXPORT   \           \  \
+   P1[AS 1] \          |  |              \           \  \
+   NO_EXPORT \         |  |               \           \  \
+              \ (C2P)  |  | (C2P/P2P) (C2P)\     (C2P) \  \
+           +----------------+              +----------------+
+           |  AS 1(P1, P6)  |              |    AS 5(P5)    |
+           +----------------+              +----------------+
 ~~~~~~~~~~
 {: #no-export title="Limited propagation of prefixes caused by NO_EXPORT."} 
 
@@ -516,30 +507,30 @@ In this scenario, existing uRPF-based SAV mechanisms would block the traffic wit
 ~~~~~~~~~~
                               +----------------+
               Anycast Server+-+    AS 3(P3)    |
-                              +-+/\-----+/\+---+
-                                 /        \
-                       P3[AS 3] /          \ P3[AS 3]
-                               /            \
-                              / (C2P)        \
-                     +----------------+       \
-                     |    AS 4(P4)    |        \
-                     ++/\+/\+/\+/\+/\++         \
-        P6[AS 1, AS 2] /  /  |  |    \           \
-             P2[AS 2] /  /   |  |     \           \
-                     /  /    |  |      \           \
-                    /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-                   /  /      |  |        \           \
-                  /  /(C2P)  |  |         \           \
-      +----------------+     |  |          \           \    
-User+-+    AS 2(P2)    |     |  | P1[AS 1]  \           \
-      +--------+/\+----+     |  | P6[AS 1]   \           \
-        P6[AS 1] \           |  | NO_EXPORT   \           \
-         P1[AS 1] \          |  |              \           \
-         NO_EXPORT \         |  |               \           \
-                    \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \
-                 +----------------+           +----------------+
-    Edge Server+-+  AS 1(P1, P6)  |           |    AS 5(P5)    |
-                 +----------------+           +----------------+
+                              +-+/\-----+/\+/\++
+                                 /        \  \
+                       P3[AS 3] /          \  \ P3[AS 3]
+                               /            \  \
+                              / (C2P)        \  \
+                     +----------------+       \  \
+                     |    AS 4(P4)    |        \  \
+                     ++/\+/\+/\+/\+/\++         \  \
+        P6[AS 1, AS 2] /  /  |  |    \           \  \
+             P2[AS 2] /  /   |  |     \           \  \
+                     /  /    |  |      \           \  \
+                    /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+                   /  /      |  |        \           \  \
+                  /  /(C2P)  |  |         \           \  \
+      +----------------+     |  |          \           \  \  
+User+-+    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
+      +--------+/\+----+     |  | P6[AS 1]   \           \  \
+        P6[AS 1] \           |  | NO_EXPORT   \           \  \
+         P1[AS 1] \          |  |              \           \  \
+         NO_EXPORT \         |  |               \           \  \
+                    \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \  \
+                 +----------------+              +----------------+
+    Edge Server+-+  AS 1(P1, P6)  |              |    AS 5(P5)    |
+                 +----------------+              +----------------+
 P3 is the anycast prefix and is only advertised by AS 3 through BGP.
 ~~~~~~~~~~
 {: #dsr title="A Direct Server Return (DSR) scenario."}
@@ -553,30 +544,30 @@ In this scenario, existing uRPF-based mechanisms will improperly block the legit
 ~~~~~~~~~~
                                       +----------------+
                                       |    AS 3(P3)    |
-                                      +-+/\-----+/\+---+
-                                         /        \
-                                        /          \
-                                       /            \
-                                      / (C2P)        \
-                             +----------------+       \
-                             |    AS 4(P4)    |        \
-                             ++/\+/\+/\+/\+/\++         \
-                P6[AS 1, AS 2] /  /  |  |    \           \
-                     P2[AS 2] /  /   |  |     \           \
-                             /  /    |  |      \           \
-                            /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-                           /  /      |  |        \           \
-                          /  /(C2P)  |  |         \           \
-              +----------------+     |  |          \           \    
-Attacker(P1')-+    AS 2(P2)    |     |  | P1[AS 1]  \           \
-              +--------+/\+----+     |  | P6[AS 1]   \           \
-                P6[AS 1] \           |  | NO_EXPORT   \           \
-                 P1[AS 1] \          |  |              \           \
-                 NO_EXPORT \         |  |               \           \
-                            \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \
-                         +----------------+           +----------------+
-                 Victim+-+  AS 1(P1, P6)  |   Server+-+    AS 5(P5)    |
-                         +----------------+           +----------------+
+                                      +-+/\-----+/\+/\++
+                                         /        \  \
+                                        /          \  \
+                                       /            \  \
+                                      / (C2P)        \  \
+                             +----------------+       \  \
+                             |    AS 4(P4)    |        \  \
+                             ++/\+/\+/\+/\+/\++         \  \
+                P6[AS 1, AS 2] /  /  |  |    \           \  \
+                     P2[AS 2] /  /   |  |     \           \  \
+                             /  /    |  |      \           \  \
+                            /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+                           /  /      |  |        \           \  \
+                          /  /(C2P)  |  |         \           \  \
+              +----------------+     |  |          \           \  \  
+Attacker(P1')-+    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
+              +--------+/\+----+     |  | P6[AS 1]   \           \  \
+                P6[AS 1] \           |  | NO_EXPORT   \           \  \
+                 P1[AS 1] \          |  |              \           \  \
+                 NO_EXPORT \         |  |               \           \  \
+                            \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \  \
+                         +----------------+              +----------------+
+                 Victim+-+  AS 1(P1, P6)  |      Server+-+    AS 5(P5)    |
+                         +----------------+              +----------------+
 P1' is the spoofed source prefix P1 by the attacker which is inside of 
 AS 2 or connected to AS 2 through other ASes.
 ~~~~~~~~~~
@@ -591,30 +582,30 @@ In this scenario, EFP-uRPF with algorithm A/B will improperly permit the spoofin
 ~~~~~~~~~~
                                       +----------------+
                                       |    AS 3(P3)    |
-                                      +-+/\-----+/\+---+
-                                         /        \
-                                        /          \
-                                       /            \
-                                      / (C2P)        \
-                             +----------------+       \
-                             |    AS 4(P4)    |        \
-                             ++/\+/\+/\+/\+/\++         \
-                P6[AS 1, AS 2] /  /  |  |    \           \
-                     P2[AS 2] /  /   |  |     \           \
-                             /  /    |  |      \           \
-                            /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-                           /  /      |  |        \           \
-                          /  /(C2P)  |  |         \           \
-              +----------------+     |  |          \           \    
-Attacker(P5')-+    AS 2(P2)    |     |  | P1[AS 1]  \           \
-              +--------+/\+----+     |  | P6[AS 1]   \           \
-                P6[AS 1] \           |  | NO_EXPORT   \           \
-                 P1[AS 1] \          |  |              \           \
-                 NO_EXPORT \         |  |               \           \
-                            \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \
-                         +----------------+           +----------------+
-                 Victim+-+  AS 1(P1, P6)  |           |    AS 5(P5)    |
-                         +----------------+           +----------------+
+                                      +-+/\-----+/\+/\++
+                                         /        \  \
+                                        /          \  \
+                                       /            \  \
+                                      / (C2P)        \  \
+                             +----------------+       \  \
+                             |    AS 4(P4)    |        \  \
+                             ++/\+/\+/\+/\+/\++         \  \
+                P6[AS 1, AS 2] /  /  |  |    \           \  \
+                     P2[AS 2] /  /   |  |     \           \  \
+                             /  /    |  |      \           \  \
+                            /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+                           /  /      |  |        \           \  \
+                          /  /(C2P)  |  |         \           \  \
+              +----------------+     |  |          \           \  \  
+Attacker(P5')-+    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
+              +--------+/\+----+     |  | P6[AS 1]   \           \  \
+                P6[AS 1] \           |  | NO_EXPORT   \           \  \
+                 P1[AS 1] \          |  |              \           \  \
+                 NO_EXPORT \         |  |               \           \  \
+                            \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \  \
+                         +----------------+              +----------------+
+                 Victim+-+  AS 1(P1, P6)  |              |    AS 5(P5)    |
+                         +----------------+              +----------------+
 P1' is the spoofed source prefix P1 by the attacker which is inside of 
 AS 2 or connected to AS 2 through other ASes.
 ~~~~~~~~~~
@@ -633,30 +624,30 @@ In order to prevent packets with spoofed source addresses from the provider/peer
 ~~~~~~~~~~
                                 +----------------+
                  Attacker(P1')+-+    AS 3(P3)    |
-                                +-+/\-----+/\+---+
-                                   /        \
-                                  /          \
-                                 /            \
-                                / (C2P/P2P)    \
-                       +----------------+       \
-                       |    AS 4(P4)    |        \
-                       ++/\+/\+/\+/\+/\++         \
-          P6[AS 1, AS 2] /  /  |  |    \           \
-               P2[AS 2] /  /   |  |     \           \
-                       /  /    |  |      \           \
-                      /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-                     /  /      |  |        \           \
-                    /  /(C2P)  |  |         \           \
-        +----------------+     |  |          \           \    
-Server+-+    AS 2(P2)    |     |  | P1[AS 1]  \           \
-        +--------+/\+----+     |  | P6[AS 1]   \           \
-          P6[AS 1] \           |  | NO_EXPORT   \           \
-           P1[AS 1] \          |  |              \           \
-           NO_EXPORT \         |  |               \           \
-                      \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \
-                   +----------------+           +----------------+
-           Victim+-+  AS 1(P1, P6)  |           |    AS 5(P5)    |
-                   +----------------+           +----------------+
+                                +-+/\-----+/\+/\++
+                                   /        \  \
+                                  /          \  \
+                                 /            \  \
+                                / (C2P/P2P)    \  \
+                       +----------------+       \  \
+                       |    AS 4(P4)    |        \  \
+                       ++/\+/\+/\+/\+/\++         \  \
+          P6[AS 1, AS 2] /  /  |  |    \           \  \
+               P2[AS 2] /  /   |  |     \           \  \
+                       /  /    |  |      \           \  \
+                      /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+                     /  /      |  |        \           \  \
+                    /  /(C2P)  |  |         \           \  \
+        +----------------+     |  |          \           \  \
+Server+-+    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
+        +--------+/\+----+     |  | P6[AS 1]   \           \  \
+          P6[AS 1] \           |  | NO_EXPORT   \           \  \
+           P1[AS 1] \          |  |              \           \  \
+           NO_EXPORT \         |  |               \           \  \
+                      \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \  \
+                   +----------------+              +----------------+
+           Victim+-+  AS 1(P1, P6)  |              |    AS 5(P5)    |
+                   +----------------+              +----------------+
 P1' is the spoofed source prefix P1 by the attacker which is inside of 
 AS 3 or connected to AS 3 through other ASes.
 ~~~~~~~~~~
@@ -671,30 +662,30 @@ Both ACL-based ingress filtering and source-based RTBH filtering will induce add
 ~~~~~~~~~~
                         +----------------+
          Attacker(P2')+-+    AS 3(P3)    |
-                        +-+/\-----+/\+---+
-                           /        \
-                          /          \
-                         /            \
-                        / (C2P/P2P)    \
-               +----------------+       \
-               |    AS 4(P4)    |        \
-               ++/\+/\+/\+/\+/\++         \
-  P6[AS 1, AS 2] /  /  |  |    \           \
-       P2[AS 2] /  /   |  |     \           \
-               /  /    |  |      \           \
-              /  /     |  |       \ P5[AS 5]  \ P5[AS 5]
-             /  /      |  |        \           \
-            /  /(C2P)  |  |         \           \
-+----------------+     |  |          \           \    
-|    AS 2(P2)    |     |  | P1[AS 1]  \           \
-+--------+/\+----+     |  | P6[AS 1]   \           \
-  P6[AS 1] \           |  | NO_EXPORT   \           \
-   P1[AS 1] \          |  |              \           \
-   NO_EXPORT \         |  |               \           \
-              \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \
-           +----------------+           +----------------+
-   Victim+-+  AS 1(P1, P6)  |           |    AS 5(P5)    |
-           +----------------+           +----------------+
+                        +-+/\-----+/\+/\++
+                           /        \  \
+                          /          \  \
+                         /            \  \
+                        / (C2P/P2P)    \  \
+               +----------------+       \  \
+               |    AS 4(P4)    |        \  \
+               ++/\+/\+/\+/\+/\++         \  \
+  P6[AS 1, AS 2] /  /  |  |    \           \  \
+       P2[AS 2] /  /   |  |     \           \  \
+               /  /    |  |      \           \  \
+              /  /     |  |       \ P5[AS 5]  \  \ P5[AS 5]
+             /  /      |  |        \           \  \
+            /  /(C2P)  |  |         \           \  \
++----------------+     |  |          \           \  \
+|    AS 2(P2)    |     |  | P1[AS 1]  \           \  \
++--------+/\+----+     |  | P6[AS 1]   \           \  \
+  P6[AS 1] \           |  | NO_EXPORT   \           \  \
+   P1[AS 1] \          |  |              \           \  \
+   NO_EXPORT \         |  |               \           \  \
+              \ (C2P)  |  | (C2P)    (C2P) \     (C2P) \  \
+           +----------------+              +----------------+
+   Victim+-+  AS 1(P1, P6)  |              |    AS 5(P5)    |
+           +----------------+              +----------------+
 P2' is the spoofed source prefix P2 by the attacker which is inside of 
 AS 3 or connected to AS 3 through other ASes.
 ~~~~~~~~~~
