@@ -30,6 +30,13 @@ In WG meetings and mailing list, there were lots of active discussions on our pr
 - Materials: https://datatracker.ietf.org/meeting/118/session/savnet
 
 - - -
+## IETF 119
+- Time: Tuesday, March 19, 2024 (Brisbane, Australia)
+- Minutes: https://datatracker.ietf.org/doc/minutes-119-savnet/
+- Draft: [draft-wu-savnet-inter-domain-architecture-07](https://datatracker.ietf.org/doc/draft-wu-savnet-inter-domain-architecture/) 
+- Materials: https://datatracker.ietf.org/meeting/119/session/savnet
+
+- - -
 ## Mailing List
 - Welcome to subscribe the SAVNET mailing list. [Click here](https://www.ietf.org/mailman/listinfo/savnet).
 
@@ -46,4 +53,4 @@ Many thanks to Igor Lubashev for the significantly helpful revision suggestions.
 
 - - -
 ## Acknowledgements
-- Many thanks to Alvaro Retana, Kotikalapudi Sriram, Rüdiger Volk, Xueyan Song, Ben Maddison, Jared Mauch, Joel Halpern, Aijun Wang, Jeffrey Haas, Fang Gao, Mingxing Liu, Zhen Tan, Yuanyuan Zhang, Yangyang Wang, Antoin Verschuren etc. for their valuable comments on this document.
+- Many thanks to Alvaro Retana, Kotikalapudi Sriram, Rüdiger Volk, Xueyan Song, Ben Maddison, Jared Mauch, Joel Halpern, Aijun Wang, Jeffrey Haas, Fang Gao, Mingxing Liu, Zhen Tan, Yuanyuan Zhang, Yangyang Wang, Antoin Verschuren, Olaf Struck etc. for their valuable comments on this document.
